@@ -1,10 +1,20 @@
-# CardDemo — AI-Assisted Migration Analysis
+# CardDemo — AI-Assisted Migration Analysis (TypeScript/NestJS Target)
 
 This directory contains the outputs of an AI-assisted migration analysis run against the AWS CardDemo COBOL application by [Spantree Technology Group](https://spantree.net), a [Trifork](https://trifork.com) company.
+
+The analysis targets migration to a TypeScript/NestJS/Bun/TypeORM/React stack. For the Java/Spring Boot target stack analysis, see the `analysis/java-migration` branch.
 
 The analysis was produced using the methodology described at [github.com/Spantree/tree-sitter-cobol-enterprise](https://github.com/Spantree/tree-sitter-cobol-enterprise): a custom tree-sitter grammar for IBM Enterprise COBOL, a dependency analysis pipeline, and Claude (Anthropic) for LLM-assisted documentation and assessment.
 
 These outputs represent what Phase 1 (Comprehension) and Phase 2 (Planning) of an AI-assisted mainframe migration produce before any code is translated.
+
+---
+
+## Target Stack
+
+NestJS + Bun + TypeORM + PostgreSQL + React + TypeScript
+
+See `technology-decisions.md` for the full rationale, including COMP-3/packed decimal handling with Decimal.js, GO TO elimination strategy, and BMS screen map to React component mapping.
 
 ---
 
@@ -22,17 +32,17 @@ These outputs represent what Phase 1 (Comprehension) and Phase 2 (Planning) of a
 | `dead-code.json` | Machine-readable dead code data |
 | `dependency-graph.md` | Written description of the dependency graph |
 | `dependency-graph.mermaid` | Mermaid diagram of the full dependency graph (renders in GitHub) |
-| `data-model.md` | Data model analysis: VSAM file structures, entity relationships, SQL schema design |
+| `data-model.md` | Data model analysis: VSAM file structures, entity relationships |
 | `schema.sql` | Generated PostgreSQL DDL from COBOL copybook analysis |
+| `technology-decisions.md` | TypeScript target stack rationale: NestJS, TypeORM, Bun, Decimal.js |
 | `migration-sequence.md` | Wave plan: 8 migration waves ordered by dependency and complexity |
 | `clusters.md` | Program clustering analysis for identifying migration boundaries |
 | `hub-copybooks.md` | Analysis of shared copybooks — the highest blast-radius change targets |
 | `batch-flow.mermaid` | Mermaid diagram of batch job dependencies |
 | `data-flow.mermaid` | Mermaid diagram of data flow between programs |
-| `credential-scan.md` | Security findings: hardcoded credentials and PCI DSS violations in the corpus |
-| `risk-matrix.md` | Risk assessment for each program and migration wave |
-| `poc-plan.md` | Proof-of-concept plan for Wave 1 (simple batch programs) |
-| `technology-decisions.md` | Technology selection rationale: target stack, tooling, and tradeoffs |
+| `credential-scan.md` | Security findings: hardcoded credentials and PCI DSS violations |
+| `risk-matrix.md` | Risk assessment per program and migration wave |
+| `poc-plan.md` | Proof-of-concept plan for Wave 1 |
 
 ---
 
@@ -42,11 +52,11 @@ These outputs represent what Phase 1 (Comprehension) and Phase 2 (Planning) of a
 
 **Complexity:** Average composite score 2.19/5 across 44 programs. Three programs scored above 3.5. The hardest — COACTUPC — has 3,368 lines, 17 CICS commands, and 51 GO TO statements.
 
-**Dead code:** 14 of 44 programs are unreachable from any entry point (32% dead code rate), plus 33 dead paragraphs within reachable programs.
+**Dead code:** 14 of 44 programs are unreachable from any entry point (32% dead code rate), plus 33 dead paragraphs.
 
-**Security:** Three critical findings: hardcoded FTP credentials in JCL, plaintext user passwords in VSAM, and CVV codes stored permanently in the card file (both PCI DSS violations). These pre-exist the migration and must be addressed regardless of migration timeline.
+**Security:** Three critical findings: hardcoded FTP credentials in JCL, plaintext user passwords in VSAM, and CVV codes stored permanently in the card file (both PCI DSS violations).
 
-**Migration plan:** 8 waves ordered by dependency and complexity. Simple batch programs first; complex CICS online transactions last. Two programs require manual rewrite rather than AI-assisted translation.
+**Migration plan:** 8 waves ordered by dependency and complexity. Two programs require manual rewrite rather than AI-assisted translation.
 
 ---
 
