@@ -17,7 +17,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AccountRecord } from '../entities/AccountRecord';
-import { formatCobolDate } from '../utils/cobol-date';
+import { parseCobolDate, toCobolDateDash } from '../utils/cobol-date';
 
 export interface AccountFlatRecord {
   /** FD OUT-ACCT-ID — PIC 9(11) */
@@ -131,7 +131,7 @@ export class AccountFileReader {
     };
 
     // PERFORM UNTIL END-OF-FILE — sequential read of all accounts
-    const accounts = await this.accountRepo.find({ order: { acctId: 'ASC' } });
+    const accounts = await this.accountRepo.find({ order: { accountId: 'ASC' } });
 
     for (const acct of accounts) {
       // 1100-DISPLAY-ACCT-RECORD
@@ -159,7 +159,7 @@ export class AccountFileReader {
    * 1100-DISPLAY-ACCT-RECORD — debug logging.
    */
   private logAccount(acct: AccountRecord): void {
-    this.logger.debug(`ACCT-ID: ${acct.acctId}`);
+    this.logger.debug(`ACCT-ID: ${acct.accountId}`);
     this.logger.debug(`ACCT-ACTIVE-STATUS: ${acct.activeStatus}`);
     this.logger.debug(`ACCT-CURR-BAL: ${acct.currentBalance}`);
     this.logger.debug(`ACCT-CREDIT-LIMIT: ${acct.creditLimit}`);
@@ -170,20 +170,19 @@ export class AccountFileReader {
    * 1300-POPUL-ACCT-RECORD
    *
    * NOTE: COBOL calls COBDATFT assembler routine to reformat REISSUE-DATE.
-   * Replacement: formatCobolDate() from cobol-date.ts.
+   * Replacement: parseCobolDate + toCobolDateDash from cobol-date.ts.
    * COBOL also hardcodes currentCycleDebit to 2525.00 when the field is zero.
    */
   private buildFlatRecord(acct: AccountRecord): AccountFlatRecord {
     const rawDebit = Number(acct.currentCycleDebit ?? 0);
     const currentCycleDebit = rawDebit === 0 ? '2525.00' : String(rawDebit.toFixed(2));
 
-    // CODATECN-TYPE '2', CODATECN-OUTTYPE '2' → reformat reissue date
-    const reissueDate = acct.reissueDate
-      ? formatCobolDate(acct.reissueDate, 'YYYYMMDD', 'YYYY-MM-DD')
-      : '          ';
+    // CODATECN-TYPE '2', CODATECN-OUTTYPE '2' → normalise reissue date to YYYY-MM-DD
+    const parsed = parseCobolDate(acct.reissueDate);
+    const reissueDate = parsed ? toCobolDateDash(parsed) : '          ';
 
     return {
-      accountId: String(acct.acctId).padStart(11, '0'),
+      accountId: String(acct.accountId).padStart(11, '0'),
       activeStatus: acct.activeStatus ?? ' ',
       currentBalance: Number(acct.currentBalance ?? 0).toFixed(2),
       creditLimit: Number(acct.creditLimit ?? 0).toFixed(2),
@@ -207,7 +206,7 @@ export class AccountFileReader {
   private buildArrayRecord(acct: AccountRecord): AccountArrayRecord {
     const bal = Number(acct.currentBalance ?? 0).toFixed(2);
     return {
-      accountId: String(acct.acctId).padStart(11, '0'),
+      accountId: String(acct.accountId).padStart(11, '0'),
       balances: [
         { currentBalance: bal, currentCycleDebit: '1005.00' },
         { currentBalance: bal, currentCycleDebit: '1525.00' },
@@ -228,7 +227,7 @@ export class AccountFileReader {
     vb1: AccountVbRecord1;
     vb2: AccountVbRecord2;
   } {
-    const accountId = String(acct.acctId).padStart(11, '0');
+    const accountId = String(acct.accountId).padStart(11, '0');
     const reissueYear = acct.reissueDate
       ? String(acct.reissueDate).substring(0, 4)
       : '    ';

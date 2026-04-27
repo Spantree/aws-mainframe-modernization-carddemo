@@ -81,14 +81,14 @@ export class TransactionListController {
    */
   @Get()
   async listTransactions(
-    @Query('page') page = 1,
     @Session() _session: { commarea?: CardDemoCommarea },
+    @Query('page') page = 1,
   ): Promise<TransactionListResponse> {
     const pageNum = Math.max(1, Number(page));
     const skip = (pageNum - 1) * this.pageSize;
 
     const transactions = await this.transactionRepo.find({
-      order: { tranOrigTs: 'DESC', tranId: 'ASC' },
+      order: { originTimestamp: 'DESC', transactionId: 'ASC' },
       skip,
       take: this.pageSize + 1,
     });
@@ -112,10 +112,11 @@ export class TransactionListController {
    */
   @Get('previous')
   async previousPage(
-    @Query('page') page = 2,
     @Session() session: { commarea?: CardDemoCommarea },
+    @Query('page') page = 2,
   ): Promise<TransactionListResponse> {
-    return this.listTransactions(Math.max(1, Number(page) - 1), session);
+    // listTransactions clamps to ≥1 itself; just step back one page.
+    return this.listTransactions(session, Number(page) - 1);
   }
 
   /**
@@ -135,13 +136,13 @@ export class TransactionListController {
 
   private toListItem(t: TransactionRecord): TransactionListItem {
     return {
-      tranId: t.tranId?.trimEnd() ?? '',
-      tranTypeCd: t.tranTypeCd?.trimEnd() ?? '',
-      tranCatCd: Number(t.tranCatCd ?? 0),
-      tranSource: t.tranSource?.trimEnd() ?? '',
-      tranAmt: Number(t.tranAmt ?? 0).toFixed(2),
-      tranOrigTs: t.tranOrigTs?.trimEnd() ?? '',
-      tranCardNum: t.tranCardNum?.trimEnd() ?? '',
+      tranId: t.transactionId?.trimEnd() ?? '',
+      tranTypeCd: t.typeCode?.trimEnd() ?? '',
+      tranCatCd: Number(t.categoryCode ?? 0),
+      tranSource: t.source?.trimEnd() ?? '',
+      tranAmt: t.amount ?? '0.00',
+      tranOrigTs: t.originTimestamp?.trimEnd() ?? '',
+      tranCardNum: t.cardNumber?.trimEnd() ?? '',
     };
   }
 }

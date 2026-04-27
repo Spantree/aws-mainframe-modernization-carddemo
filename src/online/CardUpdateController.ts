@@ -6,19 +6,18 @@
  * Migration target: NestJS + TypeORM + PostgreSQL
  * Complexity: 3.35/5 — medium-high, manual review recommended
  */
-import { Controller, Put, Param, Body, Injectable } from '@nestjs/common';
+import { Controller, Put, Param, Body } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CardRecord } from '../entities/CardRecord';
 
 export class UpdateCardDto {
-  cardEmbossedName?: string;
-  cardActiveStatus?: string;
-  cardExpirationDate?: string;
+  embossedName?: string;
+  activeStatus?: string;
+  expirationDate?: string;
 }
 
 @Controller('cards')
-@Injectable()
 export class CardUpdateController {
   constructor(
     @InjectRepository(CardRecord)
@@ -31,16 +30,16 @@ export class CardUpdateController {
     @Body() updateData: UpdateCardDto,
   ): Promise<CardRecord> {
     const card = await this.cardRepository.findOneOrFail({
-      where: { cardNum: cardNumber },
+      where: { cardNumber },
     });
-    if (updateData.cardEmbossedName !== undefined) {
-      card.cardEmbossedName = updateData.cardEmbossedName;
+    if (updateData.embossedName !== undefined) {
+      card.embossedName = updateData.embossedName;
     }
-    if (updateData.cardActiveStatus !== undefined) {
-      card.cardActiveStatus = updateData.cardActiveStatus;
+    if (updateData.activeStatus !== undefined) {
+      card.activeStatus = updateData.activeStatus;
     }
-    if (updateData.cardExpirationDate !== undefined) {
-      card.cardExpirationDate = updateData.cardExpirationDate;
+    if (updateData.expirationDate !== undefined) {
+      card.expirationDate = updateData.expirationDate;
     }
     return this.cardRepository.save(card);
   }

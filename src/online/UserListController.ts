@@ -114,7 +114,7 @@ export class UserListController {
     const items: UserListItem[] = pageUsers.map((u) => ({
       selected: false,
       userId: u.userId.padEnd(8),
-      userName: u.userName.padEnd(25),
+      userName: `${u.firstName?.trim() ?? ''} ${u.lastName?.trim() ?? ''}`.trim().padEnd(25),
       userType: u.userType === 'A' ? 'ADMIN   ' : 'USER    ',
     }));
 

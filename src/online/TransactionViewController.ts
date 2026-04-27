@@ -67,7 +67,7 @@ export class TransactionViewController {
   ): Promise<TransactionDetailResponse> {
     // READ-TRANSACT-FILE — EXEC CICS READ FILE('TRANSACT') INTO(tran-record)
     const tran = await this.transactionRepo.findOneBy({
-      tranId: tranId.padEnd(16).substring(0, 16),
+      transactionId: tranId.padEnd(16).substring(0, 16),
     });
 
     if (!tran) {
@@ -83,19 +83,19 @@ export class TransactionViewController {
     );
 
     return {
-      tranId: tran.tranId?.trimEnd() ?? '',
-      tranTypeCd: tran.tranTypeCd?.trimEnd() ?? '',
-      tranCatCd: Number(tran.tranCatCd ?? 0),
-      tranSource: tran.tranSource?.trimEnd() ?? '',
-      tranDescription: tran.tranDescription?.trimEnd() ?? '',
-      tranAmt: Number(tran.tranAmt ?? 0).toFixed(2),
-      tranMerchantId: Number(tran.tranMerchantId ?? 0),
-      tranMerchantName: tran.tranMerchantName?.trimEnd() ?? '',
-      tranMerchantCity: tran.tranMerchantCity?.trimEnd() ?? '',
-      tranMerchantZip: tran.tranMerchantZip?.trimEnd() ?? '',
-      tranCardNum: tran.tranCardNum?.trimEnd() ?? '',
-      tranOrigTs: tran.tranOrigTs?.trimEnd() ?? '',
-      tranProcTs: tran.tranProcTs?.trimEnd() ?? '',
+      tranId: tran.transactionId?.trimEnd() ?? '',
+      tranTypeCd: tran.typeCode?.trimEnd() ?? '',
+      tranCatCd: Number(tran.categoryCode ?? 0),
+      tranSource: tran.source?.trimEnd() ?? '',
+      tranDescription: tran.description?.trimEnd() ?? '',
+      tranAmt: tran.amount ?? '0.00',
+      tranMerchantId: Number(tran.merchantId ?? 0),
+      tranMerchantName: tran.merchantName?.trimEnd() ?? '',
+      tranMerchantCity: tran.merchantCity?.trimEnd() ?? '',
+      tranMerchantZip: tran.merchantZip?.trimEnd() ?? '',
+      tranCardNum: tran.cardNumber?.trimEnd() ?? '',
+      tranOrigTs: tran.originTimestamp?.trimEnd() ?? '',
+      tranProcTs: tran.processTimestamp?.trimEnd() ?? '',
     };
   }
 }
