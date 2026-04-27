@@ -28,7 +28,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
+import { Repository, Between } from 'typeorm';
 import { TransactionRecord } from '../entities/TransactionRecord';
 
 export interface ReportOptionsResponse {
@@ -111,7 +111,7 @@ export class ReportController {
     const endTs = `${req.endDate}T23:59:59.999Z`;
 
     const where: Record<string, unknown> = {
-      tranOrigTs: Between(startTs, endTs),
+      originTimestamp: Between(startTs, endTs),
     };
 
     const transactions = await this.transactionRepository.find({
@@ -129,11 +129,11 @@ export class ReportController {
 
     const rows: TransactionReportRow[] = transactions.map((t) => ({
       transactionId: t.transactionId,
-      tranTypeCd: t.tranTypeCd,
-      tranCatCd: t.tranCatCd,
-      tranSource: t.tranSource,
-      tranAmt: t.tranAmt,
-      tranOrigTs: t.tranOrigTs,
+      tranTypeCd: t.typeCode,
+      tranCatCd: t.categoryCode,
+      tranSource: t.source,
+      tranAmt: t.amount,
+      tranOrigTs: t.originTimestamp,
       merchantName: t.merchantName,
       merchantCity: t.merchantCity,
     }));

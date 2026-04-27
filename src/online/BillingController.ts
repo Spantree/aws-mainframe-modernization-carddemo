@@ -153,14 +153,14 @@ export class BillingController {
       // EXEC CICS WRITE FILE('TRANSACT') — create payment transaction record
       const tran = manager.create(TransactionRecord, {
         transactionId: tranId,
-        tranTypeCd: PAYMENT_TRAN_TYPE,
-        tranCatCd: PAYMENT_TRAN_CAT,
-        tranSource: PAYMENT_TRAN_SOURCE,
-        tranDesc: `Bill Payment - Account ${account.accountId}`,
-        tranAmt: `-${paymentAmount.toFixed(2)}`, // debit to outstanding balance
-        tranCardNum: req.cardNumber ?? '0000000000000000',
-        tranOrigTs: processedAt,
-        tranProcTs: processedAt,
+        typeCode: PAYMENT_TRAN_TYPE,
+        categoryCode: PAYMENT_TRAN_CAT,
+        source: PAYMENT_TRAN_SOURCE,
+        description: `Bill Payment - Account ${account.accountId}`,
+        amount: `-${paymentAmount.toFixed(2)}`, // debit to outstanding balance
+        cardNumber: req.cardNumber ?? '0000000000000000',
+        originTimestamp: processedAt,
+        processTimestamp: processedAt,
         merchantId: 0,
         merchantName: 'BILL PAYMENT',
         merchantCity: 'ONLINE',
