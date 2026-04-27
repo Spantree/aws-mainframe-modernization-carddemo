@@ -53,8 +53,6 @@ export class WaitUtility {
    * @param centiseconds — 1 centisecond = 10 milliseconds
    */
   sleep(centiseconds: number): Promise<void> {
-    return new Promise((resolve) =>
-      setTimeout(resolve, centiseconds * 10),
-    );
+    return Bun.sleep(centiseconds * 10);
   }
 }

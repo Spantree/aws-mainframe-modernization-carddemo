@@ -80,25 +80,19 @@ export class CardFileReader {
    * Here we stream results from PostgreSQL using a cursor (TypeORM QueryBuilder stream).
    */
   private async processAllCards(): Promise<void> {
-    const qb = this.cardRepository.createQueryBuilder('card').stream();
+    const stream = await this.cardRepository.createQueryBuilder('card').stream();
 
-    await new Promise<void>((resolve, reject) => {
-      qb.then((stream) => {
-        stream.on('data', (record: CardRecord) => {
-          // 1000-CARDFILE-GET-NEXT equivalent: receive record, display it
-          this.displayCardRecord(record);
-          this.recordCount++;
-        });
-        stream.on('end', () => {
-          this.endOfFile = true;
-          resolve();
-        });
-        stream.on('error', (err) => {
-          this.logger.error('ERROR READING CARDFILE', err);
-          reject(new Error('ABEND: Read error on CARDFILE'));
-        });
-      });
-    });
+    try {
+      for await (const record of stream as AsyncIterable<CardRecord>) {
+        // 1000-CARDFILE-GET-NEXT equivalent: receive record, display it
+        this.displayCardRecord(record);
+        this.recordCount++;
+      }
+      this.endOfFile = true;
+    } catch (err) {
+      this.logger.error('ERROR READING CARDFILE', err);
+      throw new Error('ABEND: Read error on CARDFILE');
+    }
   }
 
   /**

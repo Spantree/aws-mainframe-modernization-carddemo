@@ -59,24 +59,18 @@ export class CardXrefReader {
    * Sequential read loop — PERFORM UNTIL END-OF-FILE.
    */
   private async processAllXrefs(): Promise<void> {
-    const qb = this.xrefRepository.createQueryBuilder('xref').stream();
+    const stream = await this.xrefRepository.createQueryBuilder('xref').stream();
 
-    await new Promise<void>((resolve, reject) => {
-      qb.then((stream) => {
-        stream.on('data', (record: CardCrossReference) => {
-          this.displayXrefRecord(record);
-          this.recordCount++;
-        });
-        stream.on('end', () => {
-          this.endOfFile = true;
-          resolve();
-        });
-        stream.on('error', (err) => {
-          this.logger.error('ERROR READING XREFFILE', err);
-          reject(new Error('ABEND: Read error on XREFFILE'));
-        });
-      });
-    });
+    try {
+      for await (const record of stream as AsyncIterable<CardCrossReference>) {
+        this.displayXrefRecord(record);
+        this.recordCount++;
+      }
+      this.endOfFile = true;
+    } catch (err) {
+      this.logger.error('ERROR READING XREFFILE', err);
+      throw new Error('ABEND: Read error on XREFFILE');
+    }
   }
 
   /**

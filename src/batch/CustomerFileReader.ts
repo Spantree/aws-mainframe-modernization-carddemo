@@ -66,24 +66,18 @@ export class CustomerFileReader {
    * Sequential read loop.
    */
   private async processAllCustomers(): Promise<void> {
-    const qb = this.customerRepository.createQueryBuilder('cust').stream();
+    const stream = await this.customerRepository.createQueryBuilder('cust').stream();
 
-    await new Promise<void>((resolve, reject) => {
-      qb.then((stream) => {
-        stream.on('data', (record: CustomerRecord) => {
-          this.displayCustomerRecord(record);
-          this.recordCount++;
-        });
-        stream.on('end', () => {
-          this.endOfFile = true;
-          resolve();
-        });
-        stream.on('error', (err) => {
-          this.logger.error('ERROR READING CUSTOMER FILE', err);
-          reject(new Error('ABEND: Read error on CUSTFILE'));
-        });
-      });
-    });
+    try {
+      for await (const record of stream as AsyncIterable<CustomerRecord>) {
+        this.displayCustomerRecord(record);
+        this.recordCount++;
+      }
+      this.endOfFile = true;
+    } catch (err) {
+      this.logger.error('ERROR READING CUSTOMER FILE', err);
+      throw new Error('ABEND: Read error on CUSTFILE');
+    }
   }
 
   /**
