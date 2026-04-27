@@ -39,6 +39,13 @@ import { AccountRecord } from '../entities/AccountRecord';
 import { TransactionRecord } from '../entities/TransactionRecord';
 import { CardCrossReference } from '../entities/CardCrossReference';
 import { randomUUID } from 'crypto';
+import {
+  Decimal,
+  addDecimal,
+  decimalToString,
+  subtractDecimal,
+  toDecimal,
+} from '../utils/decimal';
 
 export interface BillingPaymentSummary {
   accountId: string;
@@ -97,11 +104,14 @@ export class BillingController {
   ): Promise<BillingPaymentSummary> {
     const account = await this.findAccount(accountId);
     const xref = await this.cardXrefRepository.findOneBy({
-      accountId: Number(account.accountId),
+      accountId: account.accountId,
     });
 
-    const balance = parseFloat(account.currentBalance) || 0;
-    const paymentAmount = Math.max(0, balance).toFixed(2);
+    // ACCT-CURR-BAL is PIC S9(10)V99 — use Decimal.js, never parseFloat.
+    const balance = toDecimal(account.currentBalance);
+    const paymentAmount = decimalToString(
+      balance.isNegative() ? new Decimal(0) : balance,
+    );
 
     return {
       accountId: account.accountId,
@@ -126,11 +136,12 @@ export class BillingController {
     const { accountId, expectedPaymentAmount } = req;
 
     const account = await this.findAccount(accountId);
-    const currentBalance = parseFloat(account.currentBalance) || 0;
-    const expectedAmount = parseFloat(expectedPaymentAmount);
+    const currentBalance = toDecimal(account.currentBalance);
+    const expectedAmount = toDecimal(expectedPaymentAmount);
 
-    // Guard against stale balance — COBOL uses map re-read; we compare explicitly
-    if (Math.abs(currentBalance - expectedAmount) > 0.01) {
+    // Guard against stale balance — COBOL uses map re-read; we compare explicitly.
+    // Tolerance is one cent, the smallest unit a PIC S9(10)V99 field can represent.
+    if (subtractDecimal(currentBalance, expectedAmount).abs().gt(new Decimal('0.01'))) {
       throw new ConflictException(
         `Balance has changed since payment was initiated. ` +
           `Expected ${expectedPaymentAmount}, actual ${account.currentBalance}. ` +
@@ -138,7 +149,7 @@ export class BillingController {
       );
     }
 
-    if (currentBalance <= 0) {
+    if (currentBalance.lte(0)) {
       throw new BadRequestException(
         'Account balance is zero or credit — no payment required',
       );
@@ -157,7 +168,7 @@ export class BillingController {
         categoryCode: PAYMENT_TRAN_CAT,
         source: PAYMENT_TRAN_SOURCE,
         description: `Bill Payment - Account ${account.accountId}`,
-        amount: `-${paymentAmount.toFixed(2)}`, // debit to outstanding balance
+        amount: decimalToString(paymentAmount.negated()), // debit to outstanding balance
         cardNumber: req.cardNumber ?? '0000000000000000',
         originTimestamp: processedAt,
         processTimestamp: processedAt,
@@ -169,22 +180,24 @@ export class BillingController {
       await manager.save(TransactionRecord, tran);
 
       // EXEC CICS REWRITE FILE('ACCTDAT') — zero out the balance
+      const newCycleCredit = addDecimal(
+        toDecimal(account.currentCycleCredit),
+        paymentAmount,
+      );
       await manager.update(AccountRecord, { accountId: account.accountId }, {
         currentBalance: '0.00',
-        currentCycleCredit: (
-          parseFloat(account.currentCycleCredit || '0') + paymentAmount
-        ).toFixed(2),
+        currentCycleCredit: decimalToString(newCycleCredit),
       });
     });
 
     this.logger.log(
-      `Bill payment posted: account=${account.accountId} amount=${paymentAmount} tranId=${tranId}`,
+      `Bill payment posted: account=${account.accountId} amount=${decimalToString(paymentAmount)} tranId=${tranId}`,
     );
 
     return {
       transactionId: tranId,
       accountId: account.accountId,
-      paymentAmount: paymentAmount.toFixed(2),
+      paymentAmount: decimalToString(paymentAmount),
       newBalance: '0.00',
       processedAt,
       message: 'Bill payment processed successfully',

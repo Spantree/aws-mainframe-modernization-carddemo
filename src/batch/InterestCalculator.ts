@@ -15,13 +15,24 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import Decimal from 'decimal.js';
-import { toDecimal, computeMonthlyInterest, decimalToString, toCardDemoTimestamp } from '../utils/decimal';
+import {
+  Decimal,
+  toDecimal,
+  computeMonthlyInterest,
+  decimalToString,
+} from '../utils/decimal';
+import { toCardDemoTimestamp } from '../utils/cobol-date';
 import { TransactionCategoryBalance } from '../entities/TransactionCategoryBalance';
 import { CardCrossReference } from '../entities/CardCrossReference';
 import { DisclosureGroup } from '../entities/DisclosureGroup';
 import { AccountRecord } from '../entities/AccountRecord';
 import { TransactionRecord } from '../entities/TransactionRecord';
+
+/** COBOL CBACT04C 1100-WRITE-TRANSACT-FILE: type 'IN', category 05. */
+const INTEREST_TRAN_TYPE_CODE = '01';
+const INTEREST_TRAN_CATEGORY_CODE = 5;
+/** Fallback group used when an account's specific group has no rate row. */
+const DEFAULT_DISCLOSURE_GROUP_ID = 'DEFAULT';
 
 /** Result counters — equivalent to COBOL working-storage counters */
 export interface InterestCalculatorResult {
@@ -79,9 +90,11 @@ export class InterestCalculator {
       totalInterestCharged: '0.00',
     };
 
-    let totalInterest = new Decimal(0);
+    let runningTotal = new Decimal(0);
 
-    // Stream TCATBAL records sequentially — equivalent to COBOL sequential READ loop
+    // CBACT04C reads TCATBALF in the order it was loaded; using accountId as the
+    // primary sort lets us detect account boundaries — the trigger for
+    // 1050-UPDATE-ACCOUNT (rewrite balance + zero cycle credit/debit).
     const stream = await this.tcatBalRepository
       .createQueryBuilder('tcb')
       .orderBy('tcb.accountId', 'ASC')
@@ -89,24 +102,59 @@ export class InterestCalculator {
       .addOrderBy('tcb.categoryCode', 'ASC')
       .stream();
 
-    await new Promise<void>((resolve, reject) => {
-      stream.on('data', async (catBal: TransactionCategoryBalance) => {
-        stream.pause(); // Back-pressure: process one at a time
-        try {
-          const interest = await this.processOneCategoryBalance(catBal, result);
-          totalInterest = totalInterest.plus(interest);
-        } catch (err) {
-          this.logger.error(`Error processing tcatbal ${catBal.accountId}/${catBal.typeCode}/${catBal.categoryCode}`, err);
-          result.errors++;
-        } finally {
-          stream.resume();
-        }
-      });
-      stream.on('end', resolve);
-      stream.on('error', reject);
-    });
+    let currentAccountId: string | null = null;
+    let currentAccount: AccountRecord | null = null;
+    let currentXrefCardNumber = '';
+    let perAccountInterest = new Decimal(0);
 
-    result.totalInterestCharged = decimalToString(totalInterest);
+    for await (const catBal of stream as AsyncIterable<TransactionCategoryBalance>) {
+      result.recordsProcessed++;
+
+      // Account boundary — finalise the previous account before processing this row.
+      if (currentAccountId !== null && currentAccountId !== catBal.accountId) {
+        if (currentAccount) {
+          await this.finaliseAccount(currentAccount, perAccountInterest);
+        }
+        runningTotal = runningTotal.plus(perAccountInterest);
+        perAccountInterest = new Decimal(0);
+        currentAccount = null;
+        currentXrefCardNumber = '';
+      }
+
+      if (currentAccountId !== catBal.accountId) {
+        currentAccountId = catBal.accountId;
+        currentAccount = await this.lookupAccount(catBal.accountId);
+        if (!currentAccount) {
+          this.logger.warn(`Account ${catBal.accountId} not found — skipping`);
+          result.errors++;
+          continue;
+        }
+        // CBACT04C reads XREFFILE by alt-key ACCT-ID for the card-number tag
+        // on each interest TRAN row.
+        const xref = await this.xrefRepository.findOne({
+          where: { accountId: catBal.accountId },
+        });
+        currentXrefCardNumber = xref?.cardNumber ?? '';
+      }
+
+      if (!currentAccount) continue;
+
+      const interest = await this.processOneCategoryBalance(
+        catBal,
+        currentAccount,
+        currentXrefCardNumber,
+        result,
+      );
+      perAccountInterest = perAccountInterest.plus(interest);
+    }
+
+    // Flush the final account.
+    if (currentAccount) {
+      await this.finaliseAccount(currentAccount, perAccountInterest);
+      runningTotal = runningTotal.plus(perAccountInterest);
+    }
+
+    result.totalInterestCharged = decimalToString(runningTotal);
     this.logger.log(
       `END OF EXECUTION OF PROGRAM CBACT04C — ` +
         `Processed: ${result.recordsProcessed}, Posted: ${result.interestChargesPosted}, ` +
@@ -118,34 +166,20 @@ export class InterestCalculator {
   }
 
   /**
-   * Process one TRAN-CAT-BAL-RECORD through the full interest pipeline.
-   * Equivalent to the main loop body in COBOL.
+   * Process one TRAN-CAT-BAL-RECORD: look up rate, compute interest, write the
+   * interest TRAN row. The account REWRITE happens once per account in
+   * `finaliseAccount` — see CBACT04C 1050-UPDATE-ACCOUNT.
    */
   private async processOneCategoryBalance(
     catBal: TransactionCategoryBalance,
+    account: AccountRecord,
+    xrefCardNumber: string,
     result: InterestCalculatorResult,
   ): Promise<Decimal> {
-    result.recordsProcessed++;
-
     const balance = toDecimal(catBal.balance);
 
-    // Skip zero or negative balances — no interest on credits
-    if (balance.lte(0)) {
-      result.zeroInterestSkipped++;
-      return new Decimal(0);
-    }
-
-    // 1000-LOOKUP-XREF: Get account group ID via card xref
-    // COBOL: READ XREF-FILE INTO CARD-XREF-RECORD KEY IS FD-XREF-ACCT-ID
-    const account = await this.lookupAccount(catBal.accountId);
-    if (!account) {
-      this.logger.warn(`Account ${catBal.accountId} not found — skipping`);
-      result.errors++;
-      return new Decimal(0);
-    }
-
-    // 1100-LOOKUP-DISCGRP: Find interest rate for this account group + type + category
-    // COBOL: READ DISCGRP-FILE INTO DIS-GROUP-RECORD KEY IS FD-DISCGRP-KEY
+    // 1100-LOOKUP-DISCGRP with 1200-A-GET-DEFAULT-INT-RATE fallback:
+    // when the account-group key misses, COBOL re-reads with 'DEFAULT'.
     const discGroup = await this.lookupDisclosureGroup(
       account.groupId,
       catBal.typeCode,
@@ -167,87 +201,115 @@ export class InterestCalculator {
       return new Decimal(0);
     }
 
-    // 1200-COMPUTE-INTEREST
-    // COBOL: COMPUTE WS-INT-CHARGE = TRAN-CAT-BAL * (DIS-INT-RATE / 100) / 12
+    // 1200-COMPUTE-INTEREST: WS-INT-CHARGE = TRAN-CAT-BAL * (DIS-INT-RATE / 100) / 12
     const interestCharge = computeMonthlyInterest(balance, interestRate);
 
-    // 1300-WRITE-INTEREST-TRAN + 1400-UPDATE-ACCOUNT (in a transaction for ACID)
-    await this.postInterestCharge(catBal.accountId, account, interestCharge);
+    // 1300-WRITE-INTEREST-TRAN — one row per category, tagged with the xref card.
+    await this.writeInterestTransaction(
+      catBal.accountId,
+      catBal,
+      interestCharge,
+      xrefCardNumber,
+    );
 
     result.interestChargesPosted++;
     return interestCharge;
   }
 
-  /**
-   * 1000-LOOKUP-XREF / ACCOUNT lookup.
-   * COBOL used VSAM random READ on ACCTFILE by account ID.
-   */
+  /** ACCTFILE random read by account ID. */
   private async lookupAccount(accountId: string): Promise<AccountRecord | null> {
     return this.accountRepository.findOne({ where: { accountId } });
   }
 
   /**
-   * 1100-LOOKUP-DISCGRP.
-   * COBOL: READ DISCGRP-FILE with composite key (group-id + type-cd + cat-cd).
+   * 1100-LOOKUP-DISCGRP with 1200-A-GET-DEFAULT-INT-RATE fallback.
+   * On a NOTFND for the account's specific group, CBACT04C re-reads using the
+   * `DEFAULT` group ID so unmapped accounts still see a rate.
    */
   private async lookupDisclosureGroup(
     groupId: string,
     typeCode: string,
     categoryCode: number,
   ): Promise<DisclosureGroup | null> {
-    return this.disclosureGroupRepository.findOne({
+    const direct = await this.disclosureGroupRepository.findOne({
       where: { accountGroupId: groupId, typeCode, categoryCode },
+    });
+    if (direct) return direct;
+
+    return this.disclosureGroupRepository.findOne({
+      where: { accountGroupId: DEFAULT_DISCLOSURE_GROUP_ID, typeCode, categoryCode },
     });
   }
 
   /**
-   * 1300-WRITE-INTEREST-TRAN + 1400-UPDATE-ACCOUNT.
-   * COBOL wrote to TRANSACT (sequential output) and updated ACCTFILE.
-   * Here both writes are wrapped in a DB transaction for ACID semantics.
-   * In COBOL, SYNCPOINT would have been used if this were a CICS program.
+   * 1300-WRITE-INTEREST-TRAN — append an interest TRAN row.
+   * COBOL fills TRAN-CARD-NUM with the xref card-number (MOVE XREF-CARD-NUM
+   * TO TRAN-CARD-NUM at CBACT04C:495) and tags type=01, category=05.
    */
-  private async postInterestCharge(
+  private async writeInterestTransaction(
     accountId: string,
-    account: AccountRecord,
+    catBal: TransactionCategoryBalance,
     interestCharge: Decimal,
+    xrefCardNumber: string,
   ): Promise<void> {
+    const now = toCardDemoTimestamp();
+    const transactionId = `INT${Date.now().toString().substring(5)}${accountId.padStart(5, '0')}`;
+    const interestTran: Partial<TransactionRecord> = {
+      transactionId,
+      typeCode: INTEREST_TRAN_TYPE_CODE,
+      categoryCode: INTEREST_TRAN_CATEGORY_CODE,
+      source: 'BATCH',
+      description: `Int. for a/c ${accountId}`,
+      amount: decimalToString(interestCharge),
+      merchantId: 0,
+      merchantName: 'INTEREST CHARGE',
+      merchantCity: '',
+      merchantZip: '',
+      cardNumber: xrefCardNumber,
+      originTimestamp: now,
+      processTimestamp: now,
+    };
+    await this.transactionRepository.save(interestTran);
+    void catBal; // category context is already encoded in the TRAN row's amount + timestamps
+  }
+
+  /**
+   * 1050-UPDATE-ACCOUNT — once per account boundary:
+   *   ADD  WS-TOTAL-INT TO ACCT-CURR-BAL
+   *   MOVE 0 TO ACCT-CURR-CYC-CREDIT
+   *   MOVE 0 TO ACCT-CURR-CYC-DEBIT
+   *   REWRITE ACCOUNT-FILE
+   * Wrapped in a DB transaction so the rewrite is atomic; statement
+   * generation depends on the cycle counters being zero after this runs.
+   */
+  private async finaliseAccount(
+    account: AccountRecord,
+    totalInterest: Decimal,
+  ): Promise<void> {
+    if (totalInterest.isZero()) {
+      // Still reset cycle counters — COBOL does this unconditionally on the
+      // account boundary, regardless of WS-TOTAL-INT.
+      await this.accountRepository.update(
+        { accountId: account.accountId },
+        { currentCycleCredit: '0.00', currentCycleDebit: '0.00' },
+      );
+      return;
+    }
+
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
-
     try {
-      const now = toCardDemoTimestamp();
-      const transactionId = `INT${Date.now().toString().substring(5)}${accountId.padStart(5, '0')}`;
-
-      // Write interest transaction record
-      // COBOL: WRITE FD-TRANFILE-REC FROM TRAN-RECORD (type 'IN' = Interest)
-      const interestTran: Partial<TransactionRecord> = {
-        transactionId,
-        typeCode: 'IN',
-        categoryCode: 0,
-        source: 'BATCH',
-        description: 'Monthly interest charge',
-        amount: decimalToString(interestCharge),
-        merchantId: 0,
-        merchantName: 'INTEREST CHARGE',
-        merchantCity: '',
-        merchantZip: '',
-        cardNumber: '',
-        originTimestamp: now,
-        processTimestamp: now,
-      };
-      await queryRunner.manager.save(TransactionRecord, interestTran);
-
-      // Update account current balance
-      // COBOL: ADD WS-INT-CHARGE TO ACCT-CURR-BAL (REWRITE ACCOUNT-FILE)
-      const currentBal = toDecimal(account.currentBalance);
-      const newBal = currentBal.plus(interestCharge);
+      const newBal = toDecimal(account.currentBalance).plus(totalInterest);
       await queryRunner.manager.update(
         AccountRecord,
-        { accountId },
-        { currentBalance: decimalToString(newBal) },
+        { accountId: account.accountId },
+        {
+          currentBalance: decimalToString(newBal),
+          currentCycleCredit: '0.00',
+          currentCycleDebit: '0.00',
+        },
       );
-
       await queryRunner.commitTransaction();
     } catch (err) {
       await queryRunner.rollbackTransaction();

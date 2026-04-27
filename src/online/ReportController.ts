@@ -23,13 +23,14 @@ import {
   Get,
   Post,
   Body,
-  Query,
   Logger,
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { TransactionRecord } from '../entities/TransactionRecord';
+import { Decimal, addDecimal, decimalToString, toDecimal } from '../utils/decimal';
+import { toCardDemoTimestamp } from '../utils/cobol-date';
 
 export interface ReportOptionsResponse {
   message: string;
@@ -106,9 +107,10 @@ export class ReportController {
   ): Promise<TransactionReportResponse> {
     this.validateDateRange(req.startDate, req.endDate);
 
-    // Append time boundaries so the LIKE-on-prefix works correctly
-    const startTs = `${req.startDate}T00:00:00.000Z`;
-    const endTs = `${req.endDate}T23:59:59.999Z`;
+    // TRAN-ORIG-TS is stored as 'YYYY-MM-DD HH:MM:SS.MMMMMM' (see toCardDemoTimestamp).
+    // Use string boundaries that match that format so Between works as a string range.
+    const startTs = toCardDemoTimestamp(new Date(`${req.startDate}T00:00:00.000Z`));
+    const endTs = toCardDemoTimestamp(new Date(`${req.endDate}T23:59:59.999Z`));
 
     const where: Record<string, unknown> = {
       originTimestamp: Between(startTs, endTs),
@@ -116,12 +118,16 @@ export class ReportController {
 
     const transactions = await this.transactionRepository.find({
       where,
-      order: { tranOrigTs: 'ASC' },
+      order: { originTimestamp: 'ASC' },
     });
 
-    const grandTotal = transactions
-      .reduce((sum, t) => sum + parseFloat(t.tranAmt || '0'), 0)
-      .toFixed(2);
+    // PIC S9(09)V99 — must be summed as fixed-point Decimal, not float.
+    const grandTotal = decimalToString(
+      transactions.reduce(
+        (sum, t) => addDecimal(sum, toDecimal(t.amount)),
+        new Decimal(0),
+      ),
+    );
 
     this.logger.log(
       `Report generated: start=${req.startDate} end=${req.endDate} rows=${transactions.length}`,

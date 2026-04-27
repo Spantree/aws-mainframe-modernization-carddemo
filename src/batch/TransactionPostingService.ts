@@ -15,8 +15,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import Decimal from 'decimal.js';
-import { toDecimal, decimalToString, toCardDemoTimestamp } from '../utils/decimal';
+import { Decimal, toDecimal, decimalToString } from '../utils/decimal';
+import { toCardDemoTimestamp } from '../utils/cobol-date';
 import { DailyTransactionRecord } from '../entities/DailyTransactionRecord';
 import { TransactionRecord } from '../entities/TransactionRecord';
 import { CardCrossReference } from '../entities/CardCrossReference';
@@ -32,7 +32,7 @@ export enum RejectionReasonCode {
   ACCOUNT_INACTIVE = 1005,
   CREDIT_LIMIT_EXCEEDED = 1006,
   DUPLICATE_TRANSACTION = 1007,
-  ZERO_AMOUNT = 1008,
+  ACCOUNT_EXPIRED = 1009,
 }
 
 export interface PostingResult {
@@ -148,17 +148,13 @@ export class TransactionPostingService {
   ): Promise<{ code: RejectionReasonCode; description: string } | null> {
     const amount = toDecimal(tran.amount);
 
-    if (amount.isZero()) {
-      return { code: RejectionReasonCode.ZERO_AMOUNT, description: 'Zero amount transaction' };
-    }
-
     const xref = await this.xrefRepository.findOne({ where: { cardNumber: tran.cardNumber } });
     if (!xref) {
       return { code: RejectionReasonCode.XREF_NOT_FOUND, description: `No xref for card ${tran.cardNumber}` };
     }
 
     const account = await this.accountRepository.findOne({
-      where: { accountId: xref.accountId.toString() },
+      where: { accountId: xref.accountId },
     });
     if (!account) {
       return { code: RejectionReasonCode.ACCOUNT_NOT_FOUND, description: `Account ${xref.accountId} not found` };
@@ -168,14 +164,29 @@ export class TransactionPostingService {
       return { code: RejectionReasonCode.ACCOUNT_INACTIVE, description: `Account ${xref.accountId} is inactive` };
     }
 
-    // Check credit limit for purchases (positive amounts)
-    if (amount.gt(0)) {
-      const currentBal = toDecimal(account.currentBalance);
-      const creditLimit = toDecimal(account.creditLimit);
-      if (currentBal.plus(amount).gt(creditLimit)) {
+    // CBTRN02C 1500-VALIDATE-ACCT credit-limit check:
+    //   COMPUTE WS-TEMP-BAL = ACCT-CURR-CYC-CREDIT - ACCT-CURR-CYC-DEBIT + DALYTRAN-AMT
+    //   IF NOT (ACCT-CREDIT-LIMIT >= WS-TEMP-BAL) → reject
+    const cycCredit = toDecimal(account.currentCycleCredit);
+    const cycDebit = toDecimal(account.currentCycleDebit);
+    const tempBal = cycCredit.minus(cycDebit).plus(amount);
+    const creditLimit = toDecimal(account.creditLimit);
+    if (tempBal.gt(creditLimit)) {
+      return {
+        code: RejectionReasonCode.CREDIT_LIMIT_EXCEEDED,
+        description: `Would exceed credit limit: ${decimalToString(creditLimit)}`,
+      };
+    }
+
+    // CBTRN02C: IF ACCT-EXPIRAION-DATE >= DALYTRAN-ORIG-TS (1:10) → ok, else reject.
+    // ACCT-EXPIRAION-DATE is YYYY-MM-DD; DALYTRAN-ORIG-TS starts YYYY-MM-DD too,
+    // so a string compare on the first 10 chars matches the COBOL test.
+    if (account.expirationDate && tran.originTimestamp) {
+      const tranDate = tran.originTimestamp.substring(0, 10);
+      if (account.expirationDate < tranDate) {
         return {
-          code: RejectionReasonCode.CREDIT_LIMIT_EXCEEDED,
-          description: `Would exceed credit limit: ${decimalToString(creditLimit)}`,
+          code: RejectionReasonCode.ACCOUNT_EXPIRED,
+          description: `Account ${xref.accountId} expired ${account.expirationDate}`,
         };
       }
     }
@@ -192,7 +203,7 @@ export class TransactionPostingService {
   private async postTransaction(dalytran: DailyTransactionRecord): Promise<void> {
     const xref = await this.xrefRepository.findOne({ where: { cardNumber: dalytran.cardNumber } });
     const account = await this.accountRepository.findOne({
-      where: { accountId: xref!.accountId.toString() },
+      where: { accountId: xref!.accountId },
     });
 
     const queryRunner = this.dataSource.createQueryRunner();
@@ -220,21 +231,33 @@ export class TransactionPostingService {
       };
       await queryRunner.manager.save(TransactionRecord, tranRecord);
 
-      // 1300-UPDATE-ACCOUNT: REWRITE ACCTFILE updating current balance
+      // 2800-UPDATE-ACCOUNT-REC (CBTRN02C):
+      //   ADD  DALYTRAN-AMT TO ACCT-CURR-BAL
+      //   IF DALYTRAN-AMT >= 0 ADD  DALYTRAN-AMT TO ACCT-CURR-CYC-CREDIT
+      //   ELSE                ADD  DALYTRAN-AMT TO ACCT-CURR-CYC-DEBIT
       const amount = toDecimal(dalytran.amount);
       const currentBal = toDecimal(account!.currentBalance);
-      const newBal = currentBal.plus(amount);
+      const cycCredit = toDecimal(account!.currentCycleCredit);
+      const cycDebit = toDecimal(account!.currentCycleDebit);
+      const updates: Partial<AccountRecord> = {
+        currentBalance: decimalToString(currentBal.plus(amount)),
+      };
+      if (amount.gte(0)) {
+        updates.currentCycleCredit = decimalToString(cycCredit.plus(amount));
+      } else {
+        updates.currentCycleDebit = decimalToString(cycDebit.plus(amount));
+      }
       await queryRunner.manager.update(
         AccountRecord,
-        { accountId: xref!.accountId.toString() },
-        { currentBalance: decimalToString(newBal) },
+        { accountId: xref!.accountId },
+        updates,
       );
 
       // 1400-UPDATE-TCATBAL: REWRITE or WRITE TCATBALF
       // COBOL: if record exists, add to balance; if not, create it (WS-CREATE-TRANCAT-REC)
       let tcatBal = await queryRunner.manager.findOne(TransactionCategoryBalance, {
         where: {
-          accountId: xref!.accountId.toString(),
+          accountId: xref!.accountId,
           typeCode: dalytran.typeCode,
           categoryCode: dalytran.categoryCode,
         },
@@ -245,7 +268,7 @@ export class TransactionPostingService {
         await queryRunner.manager.update(
           TransactionCategoryBalance,
           {
-            accountId: xref!.accountId.toString(),
+            accountId: xref!.accountId,
             typeCode: dalytran.typeCode,
             categoryCode: dalytran.categoryCode,
           },
@@ -254,7 +277,7 @@ export class TransactionPostingService {
       } else {
         // Create new TCATBAL record (WS-CREATE-TRANCAT-REC = 'Y' path)
         tcatBal = queryRunner.manager.create(TransactionCategoryBalance, {
-          accountId: xref!.accountId.toString(),
+          accountId: xref!.accountId,
           typeCode: dalytran.typeCode,
           categoryCode: dalytran.categoryCode,
           balance: dalytran.amount,
