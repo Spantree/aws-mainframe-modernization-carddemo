@@ -23,9 +23,9 @@ export class TransactionType implements ITransactionType {
 
   @PrimaryColumn({ type: 'char', length: 2, name: 'type_code' })
   // PIC X(02)
-  typeCode: string;
+  typeCode!: string;
 
   @Column({ type: 'varchar', length: 50, name: 'type_description' })
   // PIC X(50)
-  typeDescription: string;
+  typeDescription!: string;
 }

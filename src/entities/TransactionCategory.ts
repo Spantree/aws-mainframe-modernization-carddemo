@@ -25,13 +25,13 @@ export class TransactionCategory implements ITransactionCategory {
 
   @PrimaryColumn({ type: 'char', length: 2, name: 'type_code' })
   // PIC X(02) — TRAN-TYPE-CD
-  typeCode: string;
+  typeCode!: string;
 
   @PrimaryColumn({ type: 'int', name: 'category_code' })
   // PIC 9(04) — TRAN-CAT-CD
-  categoryCode: number;
+  categoryCode!: number;
 
   @Column({ type: 'varchar', length: 50, name: 'category_description' })
   // PIC X(50) — TRAN-CAT-TYPE-DESC
-  categoryDescription: string;
+  categoryDescription!: string;
 }

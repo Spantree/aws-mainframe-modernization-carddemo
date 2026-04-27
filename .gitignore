@@ -6,3 +6,11 @@ batch-app/markers/*
 /.idea/
 .DS_Store
 **/.DS_Store
+
+# TypeScript / Bun runtime
+node_modules/
+dist/
+bun.lockb
+bun.lock
+.scannerwork/
+.scratch/

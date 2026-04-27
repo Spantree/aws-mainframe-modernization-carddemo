@@ -27,18 +27,18 @@ export class DisclosureGroup implements IDisclosureGroup {
 
   @PrimaryColumn({ type: 'varchar', length: 10, name: 'account_group_id' })
   // PIC X(10) — DIS-ACCT-GROUP-ID; join key to ACCOUNT-RECORD.ACCT-GROUP-ID
-  accountGroupId: string;
+  accountGroupId!: string;
 
   @PrimaryColumn({ type: 'char', length: 2, name: 'type_code' })
   // PIC X(02) — DIS-TRAN-TYPE-CD
-  typeCode: string;
+  typeCode!: string;
 
   @PrimaryColumn({ type: 'int', name: 'category_code' })
   // PIC 9(04) — DIS-TRAN-CAT-CD
-  categoryCode: number;
+  categoryCode!: number;
 
   @Column({ type: 'decimal', precision: 6, scale: 2, name: 'interest_rate' })
   // PIC S9(04)V99 — COMP-3: use Decimal.js for arithmetic, not native number
   // This is an annual percentage rate. Divide by 12 to get monthly rate.
-  interestRate: string;
+  interestRate!: string;
 }

@@ -15,7 +15,12 @@ import { Entity, Column, PrimaryColumn, Index } from 'typeorm';
 export interface ICardCrossReference {
   cardNumber: string;   // PIC X(16) — primary key
   customerId: number;   // PIC 9(09)
-  accountId: number;    // PIC 9(11)
+  /**
+   * PIC 9(11). Stored as a string to match `AccountRecord.accountId` and
+   * because TypeORM `bigint` columns return JS strings (a `number` here would
+   * lie about the runtime shape).
+   */
+  accountId: string;
 }
 
 // ── TypeORM entity ──
@@ -25,17 +30,16 @@ export class CardCrossReference implements ICardCrossReference {
 
   @PrimaryColumn({ type: 'varchar', length: 16, name: 'card_number' })
   // PIC X(16) — primary KSDS key
-  cardNumber: string;
+  cardNumber!: string;
 
   @Column({ type: 'int', name: 'customer_id' })
   // PIC 9(09)
-  customerId: number;
+  customerId!: number;
 
   @Index('idx_card_xref_account_id')
   @Column({ type: 'bigint', name: 'account_id' })
-  // PIC 9(11)
-  // Note: In the COBOL VSAM file, FD-XREF-ACCT-ID was declared as an ALTERNATE RECORD KEY
-  // allowing random access by account ID (used in CBACT04C for interest calculation).
-  // The index above replicates that alternate-key access path.
-  accountId: number;
+  // PIC 9(11). FD-XREF-ACCT-ID was an ALTERNATE RECORD KEY in the COBOL VSAM
+  // file (used by CBACT04C); the index above keeps that access path. TypeORM
+  // returns `bigint` columns as strings, which also matches AccountRecord.
+  accountId!: string;
 }

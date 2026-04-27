@@ -34,23 +34,23 @@ export class UserSecurityRecord implements IUserSecurityRecord {
 
   @PrimaryColumn({ type: 'varchar', length: 8, name: 'user_id' })
   // PIC X(08) — SEC-USR-ID
-  userId: string;
+  userId!: string;
 
   @Column({ type: 'varchar', length: 20, name: 'first_name', default: '' })
   // PIC X(20) — SEC-USR-FNAME
-  firstName: string;
+  firstName!: string;
 
   @Column({ type: 'varchar', length: 20, name: 'last_name', default: '' })
   // PIC X(20) — SEC-USR-LNAME
-  lastName: string;
+  lastName!: string;
 
   @Column({ type: 'varchar', length: 255, name: 'password_hash' })
   // Replaces PIC X(08) SEC-USR-PWD — store bcrypt hash, never plaintext
   // Use bcrypt.hash(password, 12) on write; bcrypt.compare on sign-on.
-  passwordHash: string;
+  passwordHash!: string;
 
   @Column({ type: 'char', length: 1, name: 'user_type', default: 'U' })
   // PIC X(01) — SEC-USR-TYPE: 'A' = admin (CDEMO-USRTYP-ADMIN), 'U' = user (CDEMO-USRTYP-USER)
   // Admin users see COADM01C menu; regular users see COMEN01C menu.
-  userType: string;
+  userType!: string;
 }

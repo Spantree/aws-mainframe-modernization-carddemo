@@ -39,54 +39,54 @@ export class DailyTransactionRecord implements IDailyTransactionRecord {
 
   @PrimaryColumn({ type: 'varchar', length: 16, name: 'transaction_id' })
   // PIC X(16)
-  transactionId: string;
+  transactionId!: string;
 
   @Column({ type: 'char', length: 2, name: 'type_code' })
   // PIC X(02)
-  typeCode: string;
+  typeCode!: string;
 
   @Column({ type: 'int', name: 'category_code' })
   // PIC 9(04)
-  categoryCode: number;
+  categoryCode!: number;
 
   @Column({ type: 'varchar', length: 10, name: 'source', default: '' })
   // PIC X(10)
-  source: string;
+  source!: string;
 
   @Column({ type: 'varchar', length: 100, name: 'description', default: '' })
   // PIC X(100)
-  description: string;
+  description!: string;
 
   @Column({ type: 'decimal', precision: 11, scale: 2, name: 'amount' })
   // PIC S9(09)V99 — COMP-3: use Decimal.js for arithmetic, not native number
-  amount: string;
+  amount!: string;
 
   @Column({ type: 'int', name: 'merchant_id', default: 0 })
   // PIC 9(09)
-  merchantId: number;
+  merchantId!: number;
 
   @Column({ type: 'varchar', length: 50, name: 'merchant_name', default: '' })
   // PIC X(50)
-  merchantName: string;
+  merchantName!: string;
 
   @Column({ type: 'varchar', length: 50, name: 'merchant_city', default: '' })
   // PIC X(50)
-  merchantCity: string;
+  merchantCity!: string;
 
   @Column({ type: 'varchar', length: 10, name: 'merchant_zip', default: '' })
   // PIC X(10)
-  merchantZip: string;
+  merchantZip!: string;
 
   @Index('idx_daily_tran_card')
   @Column({ type: 'varchar', length: 16, name: 'card_number' })
   // PIC X(16)
-  cardNumber: string;
+  cardNumber!: string;
 
   @Column({ type: 'varchar', length: 26, name: 'origin_timestamp', default: '' })
   // PIC X(26)
-  originTimestamp: string;
+  originTimestamp!: string;
 
   @Column({ type: 'varchar', length: 26, name: 'process_timestamp', default: '' })
   // PIC X(26)
-  processTimestamp: string;
+  processTimestamp!: string;
 }

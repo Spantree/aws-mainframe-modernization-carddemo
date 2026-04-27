@@ -1,17 +1,20 @@
 /**
  * High-complexity CICS program stubs — CardDemo TypeScript migration
  *
- * These three programs scored above 3.5/5 on the composite complexity index
+ * These programs scored above 3.5/5 on the composite complexity index
  * and require human specialist review before automated translation proceeds.
  *
- * Programs covered:
+ * Programs covered here:
  *   COCRDLIC (3.85) — Card list with complex search and filtering
  *   COTRTLIC (3.6)  — Transaction list with complex aggregation
- *   COTRTUPC (3.3)  — Transaction update (borderline — may be automatable)
+ *
+ * The third high-complexity program (COTRTUPC, 3.3) lives in its own file
+ * (TransactionUpdateController.ts) so the class name doesn't collide with
+ * the per-program stub naming convention used elsewhere.
  *
  * Migration target: NestJS + TypeORM + PostgreSQL
  */
-import { Controller, Get, Post, Param, Body, NotImplementedException } from '@nestjs/common';
+import { Controller, Get, NotImplementedException } from '@nestjs/common';
 
 /**
  * Translates COCRDLIC.cbl
@@ -39,24 +42,6 @@ export class TransactionSearchController {
   searchTransactions(): never {
     throw new NotImplementedException(
       'TransactionSearch requires human specialist migration (COTRTLIC, complexity 3.6)',
-    );
-  }
-}
-
-/**
- * Translates COTRTUPC.cbl
- * Complexity: 3.3/5 — 1,429 lines, 12 CICS commands, 23 GO TOs
- * Status: STUB — borderline, may be automatable with careful review
- */
-@Controller('transactions')
-export class TransactionUpdateController {
-  @Post(':transactionId')
-  updateTransaction(
-    @Param('transactionId') transactionId: string,
-    @Body() updateData: Record<string, unknown>,
-  ): never {
-    throw new NotImplementedException(
-      'TransactionUpdate requires specialist review (COTRTUPC, complexity 3.3)',
     );
   }
 }

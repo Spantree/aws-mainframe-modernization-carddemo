@@ -40,73 +40,73 @@ export class CustomerRecord implements ICustomerRecord {
 
   @PrimaryColumn({ type: 'int', name: 'customer_id' })
   // PIC 9(09)
-  customerId: number;
+  customerId!: number;
 
   @Column({ type: 'varchar', length: 25, name: 'first_name' })
   // PIC X(25)
-  firstName: string;
+  firstName!: string;
 
   @Column({ type: 'varchar', length: 25, name: 'middle_name', default: '' })
   // PIC X(25)
-  middleName: string;
+  middleName!: string;
 
   @Column({ type: 'varchar', length: 25, name: 'last_name' })
   // PIC X(25)
-  lastName: string;
+  lastName!: string;
 
   @Column({ type: 'varchar', length: 50, name: 'address_line_1', default: '' })
   // PIC X(50)
-  addressLine1: string;
+  addressLine1!: string;
 
   @Column({ type: 'varchar', length: 50, name: 'address_line_2', default: '' })
   // PIC X(50)
-  addressLine2: string;
+  addressLine2!: string;
 
   @Column({ type: 'varchar', length: 50, name: 'address_line_3', default: '' })
   // PIC X(50)
-  addressLine3: string;
+  addressLine3!: string;
 
   @Column({ type: 'char', length: 2, name: 'address_state_code', default: '' })
   // PIC X(02)
-  addressStateCode: string;
+  addressStateCode!: string;
 
   @Column({ type: 'char', length: 3, name: 'address_country_code', default: 'USA' })
   // PIC X(03)
-  addressCountryCode: string;
+  addressCountryCode!: string;
 
   @Column({ type: 'varchar', length: 10, name: 'address_zip', default: '' })
   // PIC X(10)
-  addressZip: string;
+  addressZip!: string;
 
   @Column({ type: 'varchar', length: 15, name: 'phone_number_1', default: '' })
   // PIC X(15)
-  phoneNumber1: string;
+  phoneNumber1!: string;
 
   @Column({ type: 'varchar', length: 15, name: 'phone_number_2', default: '' })
   // PIC X(15)
-  phoneNumber2: string;
+  phoneNumber2!: string;
 
   @Column({ type: 'int', name: 'ssn', default: 0 })
   // PIC 9(09)
-  ssn: number;
+  ssn!: number;
 
   @Column({ type: 'varchar', length: 20, name: 'govt_issued_id', default: '' })
   // PIC X(20)
-  govtIssuedId: string;
+  govtIssuedId!: string;
 
   @Column({ type: 'varchar', length: 10, name: 'date_of_birth', default: '' })
   // PIC X(10) — YYYY-MM-DD format
-  dateOfBirth: string;
+  dateOfBirth!: string;
 
   @Column({ type: 'varchar', length: 10, name: 'eft_account_id', default: '' })
   // PIC X(10)
-  eftAccountId: string;
+  eftAccountId!: string;
 
   @Column({ type: 'char', length: 1, name: 'primary_card_holder_indicator', default: 'Y' })
   // PIC X(01)
-  primaryCardHolderIndicator: string;
+  primaryCardHolderIndicator!: string;
 
   @Column({ type: 'smallint', name: 'fico_credit_score', default: 0 })
   // PIC 9(03)
-  ficoCreditScore: number;
+  ficoCreditScore!: number;
 }

@@ -27,25 +27,25 @@ export class CardRecord implements ICardRecord {
 
   @PrimaryColumn({ type: 'varchar', length: 16, name: 'card_number' })
   // PIC X(16)
-  cardNumber: string;
+  cardNumber!: string;
 
   @Column({ type: 'varchar', length: 11, name: 'account_id' })
   // PIC 9(11)
-  accountId: string;
+  accountId!: string;
 
   @Column({ type: 'int', name: 'cvv_code' })
   // PIC 9(03)
-  cvvCode: number;
+  cvvCode!: number;
 
   @Column({ type: 'varchar', length: 50, name: 'embossed_name' })
   // PIC X(50)
-  embossedName: string;
+  embossedName!: string;
 
   @Column({ type: 'varchar', length: 10, name: 'expiration_date' })
   // PIC X(10)
-  expirationDate: string;
+  expirationDate!: string;
 
   @Column({ type: 'char', length: 1, name: 'active_status', default: 'Y' })
   // PIC X(01)
-  activeStatus: string;
+  activeStatus!: string;
 }

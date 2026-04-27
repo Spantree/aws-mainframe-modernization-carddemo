@@ -26,18 +26,18 @@ export class TransactionCategoryBalance implements ITransactionCategoryBalance {
 
   @PrimaryColumn({ type: 'varchar', length: 11, name: 'account_id' })
   // PIC 9(11) — TRANCAT-ACCT-ID, part of composite KSDS key
-  accountId: string;
+  accountId!: string;
 
   @PrimaryColumn({ type: 'char', length: 2, name: 'type_code' })
   // PIC X(02) — TRANCAT-TYPE-CD, part of composite KSDS key
-  typeCode: string;
+  typeCode!: string;
 
   @PrimaryColumn({ type: 'int', name: 'category_code' })
   // PIC 9(04) — TRANCAT-CD, part of composite KSDS key
-  categoryCode: number;
+  categoryCode!: number;
 
   @Column({ type: 'decimal', precision: 11, scale: 2, name: 'balance', default: 0 })
   // PIC S9(09)V99 — COMP-3: use Decimal.js for arithmetic, not native number
   // CBACT04C reads this and computes: interest = balance * (rate / 100) / 12
-  balance: string;
+  balance!: string;
 }
