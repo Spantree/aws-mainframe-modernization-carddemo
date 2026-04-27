@@ -26,26 +26,37 @@ export const CobolDateFormat = {
 } as const;
 
 /**
+ * True for SPACES, LOW-VALUES, or all-zero strings — the COBOL conventions
+ * for "no date set". Both `isValidCobolDate` and `parseCobolDate` defer to
+ * this so they agree on what "blank" means.
+ */
+function isCobolBlankDate(dateStr: string | null | undefined): boolean {
+  if (!dateStr) return true;
+  const trimmed = dateStr.trim();
+  if (trimmed === '') return true;
+  return /^0+$/.test(trimmed.replace(/[-/]/g, ''));
+}
+
+/**
  * Validate a date string in YYYYMMDD or YYYY-MM-DD format.
  * Replaces: CALL 'CSUTLDTC' USING LS-DATE, LS-DATE-FORMAT, LS-RESULT
  *
  * CSUTLDTC called IBM CEEDAYS to convert the date to a Lillian Day Number;
- * if the conversion failed, the date was invalid. We use Date.parse instead.
+ * if the conversion failed, the date was invalid. Blank/all-zero strings
+ * count as not valid.
  *
  * @returns true if the date is a valid calendar date.
  */
 export function isValidCobolDate(dateStr: string): boolean {
-  if (!dateStr || dateStr.trim() === '' || /^\s+$/.test(dateStr)) {
-    return false;
-  }
+  if (isCobolBlankDate(dateStr)) return false;
 
   // Normalize: remove dashes, slashes
   const normalized = dateStr.replace(/[-/]/g, '');
   if (normalized.length !== 8) return false;
 
-  const year = parseInt(normalized.substring(0, 4), 10);
-  const month = parseInt(normalized.substring(4, 6), 10);
-  const day = parseInt(normalized.substring(6, 8), 10);
+  const year = Number.parseInt(normalized.substring(0, 4), 10);
+  const month = Number.parseInt(normalized.substring(4, 6), 10);
+  const day = Number.parseInt(normalized.substring(6, 8), 10);
 
   if (isNaN(year) || isNaN(month) || isNaN(day)) return false;
   if (month < 1 || month > 12) return false;
@@ -61,20 +72,18 @@ export function isValidCobolDate(dateStr: string): boolean {
 
 /**
  * Parse a COBOL date string (YYYYMMDD or YYYY-MM-DD) into a JavaScript Date.
- * Returns null if the string is blank/spaces (COBOL LOW-VALUES / SPACES).
+ * Returns null for blank/spaces/zero strings or unparseable values —
+ * `isValidCobolDate` is the source of truth.
  */
 export function parseCobolDate(dateStr: string | null | undefined): Date | null {
-  if (!dateStr || dateStr.trim() === '' || /^0+$/.test(dateStr.replace(/[-/]/g, ''))) {
-    return null;
-  }
-  const normalized = dateStr.replace(/[-/]/g, '');
-  if (normalized.length !== 8) return null;
+  if (isCobolBlankDate(dateStr)) return null;
+  const value = dateStr as string;
+  if (!isValidCobolDate(value)) return null;
 
-  const year = parseInt(normalized.substring(0, 4), 10);
-  const month = parseInt(normalized.substring(4, 6), 10);
-  const day = parseInt(normalized.substring(6, 8), 10);
-
-  if (!isValidCobolDate(dateStr)) return null;
+  const normalized = value.replace(/[-/]/g, '');
+  const year = Number.parseInt(normalized.substring(0, 4), 10);
+  const month = Number.parseInt(normalized.substring(4, 6), 10);
+  const day = Number.parseInt(normalized.substring(6, 8), 10);
   return new Date(year, month - 1, day);
 }
 

@@ -199,24 +199,26 @@ export class DataImportService {
     const p = record.payload as Record<string, unknown>;
     await this.customerRepo.upsert(
       this.customerRepo.create({
-        custId: p['custId'] as string,
+        customerId: p['custId'] as number,
         firstName: p['firstName'] as string,
         middleName: p['middleName'] as string,
         lastName: p['lastName'] as string,
-        streetAddress: p['streetAddress'] as string,
-        city: p['city'] as string,
-        stateCd: p['stateCd'] as string,
-        zipCd: p['zipCd'] as string,
-        countryCd: p['countryCd'] as string,
-        phone: p['phone'] as string,
-        creditScore: p['creditScore'] as number,
-        creditScoreTs: p['creditScoreTs'] as string,
-        fico: p['fico'] as number,
-        dob: p['dob'] as string,
-        eaddr: p['eaddr'] as string,
+        addressLine1: p['streetAddress'] as string,
+        addressLine2: (p['addressLine2'] as string) ?? '',
+        addressLine3: (p['addressLine3'] as string) ?? '',
+        addressStateCode: p['stateCd'] as string,
+        addressCountryCode: p['countryCd'] as string,
+        addressZip: p['zipCd'] as string,
+        phoneNumber1: p['phone'] as string,
+        phoneNumber2: (p['phoneAlt'] as string) ?? '',
+        ssn: (p['ssn'] as number) ?? 0,
         govtIssuedId: p['govtIssuedId'] as string,
+        dateOfBirth: p['dob'] as string,
+        eftAccountId: (p['eaddr'] as string) ?? '',
+        primaryCardHolderIndicator: (p['primaryHolder'] as string) ?? 'Y',
+        ficoCreditScore: (p['fico'] as number) ?? 0,
       }),
-      ['custId'],
+      ['customerId'],
     );
   }
 
@@ -227,7 +229,7 @@ export class DataImportService {
     const p = record.payload as Record<string, unknown>;
     await this.accountRepo.upsert(
       this.accountRepo.create({
-        acctId: p['acctId'] as string,
+        accountId: p['acctId'] as string,
         activeStatus: p['activeStatus'] as string,
         currentBalance: p['currentBalance'] as string,
         creditLimit: p['creditLimit'] as string,
@@ -237,9 +239,10 @@ export class DataImportService {
         reissueDate: p['reissueDate'] as string,
         currentCycleCredit: p['currentCycleCredit'] as string,
         currentCycleDebit: p['currentCycleDebit'] as string,
+        addressZip: (p['addressZip'] as string) ?? '',
         groupId: p['groupId'] as string,
       }),
-      ['acctId'],
+      ['accountId'],
     );
   }
 
@@ -250,11 +253,11 @@ export class DataImportService {
     const p = record.payload as Record<string, unknown>;
     await this.xrefRepo.upsert(
       this.xrefRepo.create({
-        cardNum: p['cardNum'] as string,
-        custNum: p['custNum'] as string,
-        acctId: p['acctId'] as string,
+        cardNumber: p['cardNum'] as string,
+        customerId: p['custNum'] as number,
+        accountId: p['acctId'] as string,
       }),
-      ['cardNum'],
+      ['cardNumber'],
     );
   }
 
@@ -265,21 +268,21 @@ export class DataImportService {
     const p = record.payload as Record<string, unknown>;
     await this.transactionRepo.upsert(
       this.transactionRepo.create({
-        tranId: p['tranId'] as string,
-        tranTypeCd: p['tranTypeCd'] as string,
-        tranCatCd: p['tranCatCd'] as number,
-        tranSource: p['tranSource'] as string,
-        tranDescription: p['tranDescription'] as string,
-        tranAmt: p['tranAmt'] as string,
-        tranMerchantId: p['tranMerchantId'] as number,
-        tranMerchantName: p['tranMerchantName'] as string,
-        tranMerchantCity: p['tranMerchantCity'] as string,
-        tranMerchantZip: p['tranMerchantZip'] as string,
-        tranCardNum: p['tranCardNum'] as string,
-        tranOrigTs: p['tranOrigTs'] as string,
-        tranProcTs: p['tranProcTs'] as string,
+        transactionId: p['tranId'] as string,
+        typeCode: p['tranTypeCd'] as string,
+        categoryCode: p['tranCatCd'] as number,
+        source: p['tranSource'] as string,
+        description: p['tranDescription'] as string,
+        amount: p['tranAmt'] as string,
+        merchantId: p['tranMerchantId'] as number,
+        merchantName: p['tranMerchantName'] as string,
+        merchantCity: p['tranMerchantCity'] as string,
+        merchantZip: p['tranMerchantZip'] as string,
+        cardNumber: p['tranCardNum'] as string,
+        originTimestamp: p['tranOrigTs'] as string,
+        processTimestamp: p['tranProcTs'] as string,
       }),
-      ['tranId'],
+      ['transactionId'],
     );
   }
 
@@ -290,14 +293,14 @@ export class DataImportService {
     const p = record.payload as Record<string, unknown>;
     await this.cardRepo.upsert(
       this.cardRepo.create({
-        cardNum: p['cardNum'] as string,
-        cardAcctId: p['cardAcctId'] as string,
-        cardCvvCd: p['cardCvvCd'] as string,
-        cardEmbossedName: p['cardEmbossedName'] as string,
-        cardExpiryDate: p['cardExpiryDate'] as string,
-        cardActiveStatus: p['cardActiveStatus'] as string,
+        cardNumber: p['cardNum'] as string,
+        accountId: p['cardAcctId'] as string,
+        cvvCode: p['cardCvvCd'] as number,
+        embossedName: p['cardEmbossedName'] as string,
+        expirationDate: p['cardExpiryDate'] as string,
+        activeStatus: p['cardActiveStatus'] as string,
       }),
-      ['cardNum'],
+      ['cardNumber'],
     );
   }
 }

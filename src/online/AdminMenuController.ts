@@ -27,16 +27,16 @@ export interface AdminMenuOption {
 }
 
 export class AdminMenuResponseDto {
-  currentDate: string;    // WS-CURDATE-MM-DD-YY
-  currentTime: string;    // WS-CURTIME-HH-MM-SS
-  transactionId: string;  // WS-TRANID = 'CA00'
-  programName: string;    // WS-PGMNAME = 'COADM01C'
-  options: AdminMenuOption[];
+  currentDate!: string;    // WS-CURDATE-MM-DD-YY
+  currentTime!: string;    // WS-CURTIME-HH-MM-SS
+  transactionId!: string;  // WS-TRANID = 'CA00'
+  programName!: string;    // WS-PGMNAME = 'COADM01C'
+  options!: AdminMenuOption[];
   errorMessage?: string;
 }
 
 export class AdminMenuSelectionDto {
-  option: number;         // WS-OPTION PIC 9(02)
+  option!: number;         // WS-OPTION PIC 9(02)
 }
 
 /**

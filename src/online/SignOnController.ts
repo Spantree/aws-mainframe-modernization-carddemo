@@ -32,16 +32,16 @@ import { CardDemoCommarea } from '../dto/CardDemoCommarea';
 
 export class SignOnDto {
   /** PIC X(08) — USRIDINP from BMS screen COSGN0A */
-  userId: string;
+  userId!: string;
 
   /** PIC X(08) — PASSWDINP — plaintext from screen, compared against bcrypt hash */
-  password: string;
+  password!: string;
 }
 
 export class SignOnResponseDto {
-  userId: string;
-  userType: 'A' | 'U';
-  redirectTo: 'admin-menu' | 'user-menu' | 'signon';
+  userId!: string;
+  userType!: 'A' | 'U';
+  redirectTo!: 'admin-menu' | 'user-menu' | 'signon';
   errorMessage?: string;
 }
 

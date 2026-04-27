@@ -1,8 +1,8 @@
 /**
- * Generated from COUSR02C.cbl — CardDemo TypeScript migration
- * Original COBOL program: COUSR02C — User add (create security record).
+ * Generated from COUSR01C.cbl — CardDemo TypeScript migration
+ * Original COBOL program: COUSR01C — User add (create security record).
  * Complexity: 1.90 (Easy).
- *   Transaction ID: CU02. Admin-only. Creates a new USRSEC record.
+ *   Transaction ID: CU01. Admin-only. Creates a new USRSEC record.
  *   Validates: user ID must not already exist, first/last name required,
  *   user type must be 'A' or 'U', password required.
  *   Business criticality: 3 — security record creation.
@@ -39,21 +39,21 @@ import { CardDemoCommarea } from '../dto/CardDemoCommarea';
 
 export class CreateUserDto {
   /** USR-ID — PIC X(08) — must be unique in USRSEC */
-  userId: string;
+  userId!: string;
   /** USR-FNAME — PIC X(20) */
-  firstName: string;
+  firstName!: string;
   /** USR-LNAME — PIC X(20) */
-  lastName: string;
+  lastName!: string;
   /**
    * USR-UTYPE — PIC X(01)
    * 'A' = Administrator, 'U' = Regular User
    */
-  userType: 'A' | 'U';
+  userType!: 'A' | 'U';
   /**
    * USR-PWD — PIC X(08) in COBOL (plaintext)
    * Migrated: bcrypt-hashed before storage.
    */
-  password: string;
+  password!: string;
 }
 
 export interface UserCreateResponse {
@@ -63,8 +63,8 @@ export interface UserCreateResponse {
 }
 
 /**
- * UserAddController — translates COUSR02C.
- * Transaction ID: CU02
+ * UserAddController — translates COUSR01C.
+ * Transaction ID: CU01
  *
  * ACCESS CONTROL: Admin-only.
  */
@@ -72,8 +72,8 @@ export interface UserCreateResponse {
 export class UserAddController {
   private readonly logger = new Logger(UserAddController.name);
 
-  private readonly programName = 'COUSR02C';
-  private readonly transactionId = 'CU02';
+  private readonly programName = 'COUSR01C';
+  private readonly transactionId = 'CU01';
   private readonly BCRYPT_ROUNDS = 10;
 
   constructor(
@@ -154,10 +154,6 @@ export class UserAddController {
     }
     if (!dto.password?.trim()) {
       throw new BadRequestException('Password is required');
-    }
-    if (dto.password.length > 8) {
-      // COBOL PIC X(08) — 8-char limit enforced at UI layer
-      throw new BadRequestException('Password max length is 8 characters');
     }
   }
 }

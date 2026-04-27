@@ -25,16 +25,16 @@ export interface UserMenuOption {
 }
 
 export class UserMenuResponseDto {
-  currentDate: string;
-  currentTime: string;
-  transactionId: string;
-  programName: string;
-  options: UserMenuOption[];
+  currentDate!: string;
+  currentTime!: string;
+  transactionId!: string;
+  programName!: string;
+  options!: UserMenuOption[];
   errorMessage?: string;
 }
 
 export class UserMenuSelectionDto {
-  option: number;
+  option!: number;
 }
 
 /**

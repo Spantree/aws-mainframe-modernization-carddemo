@@ -143,9 +143,9 @@ export class DateUtilController {
     mm: string,
     dd: string,
   ): { error?: string } {
-    const year = parseInt(yyyy, 10);
-    const month = parseInt(mm, 10);
-    const day = parseInt(dd, 10);
+    const year = Number.parseInt(yyyy, 10);
+    const month = Number.parseInt(mm, 10);
+    const day = Number.parseInt(dd, 10);
 
     // THIS-CENTURY / LAST-CENTURY check from COBOL
     if (year < 1900 || year > 2099) {

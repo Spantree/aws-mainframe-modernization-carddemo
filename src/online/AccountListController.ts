@@ -26,7 +26,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like, FindManyOptions } from 'typeorm';
+import { Repository, FindManyOptions } from 'typeorm';
 import { AccountRecord } from '../entities/AccountRecord';
 
 export interface AccountListItem {
@@ -79,7 +79,7 @@ export class AccountListController {
     @Query('activeOnly') activeOnly = 'false',
     @Query('groupId') groupId?: string,
   ): Promise<AccountListResponse> {
-    const page = Math.max(1, parseInt(pageParam, 10) || 1);
+    const page = Math.max(1, Number.parseInt(pageParam, 10) || 1);
     const skip = (page - 1) * PAGE_SIZE;
 
     const where: FindManyOptions<AccountRecord>['where'] = {};
@@ -95,11 +95,11 @@ export class AccountListController {
       where,
       order: { accountId: 'ASC' },
       skip,
-      take: PAGE_SIZE + 1, // fetch one extra to determine hasNextPage
+      take: PAGE_SIZE,
     });
 
-    const hasNextPage = records.length > PAGE_SIZE;
-    const accounts = records.slice(0, PAGE_SIZE).map((a) => ({
+    const hasNextPage = total > skip + records.length;
+    const accounts = records.map((a) => ({
       accountId: a.accountId,
       activeStatus: a.activeStatus,
       currentBalance: a.currentBalance,

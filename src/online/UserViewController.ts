@@ -1,8 +1,8 @@
 /**
- * Generated from COUSR01C.cbl — CardDemo TypeScript migration
- * Original COBOL program: COUSR01C — User view (display user record).
+ * Generated from COUSR02C.cbl — CardDemo TypeScript migration
+ * Original COBOL program: COUSR02C — User view (display user record).
  * Complexity: 1.70 (Easy).
- *   Transaction ID: CU01. Displays a single user's security record.
+ *   Transaction ID: CU02. Displays a single user's security record.
  *   Read-only. XCTL source: COUSR00C (user list selection).
  *   Business criticality: 2 — read-only admin display.
  *
@@ -43,17 +43,17 @@ export interface UserDetailResponse {
 }
 
 /**
- * UserViewController — translates COUSR01C.
- * Transaction ID: CU01
+ * UserViewController — translates COUSR02C.
+ * Transaction ID: CU02
  */
 @Controller('users')
 export class UserViewController {
   private readonly logger = new Logger(UserViewController.name);
 
-  /** WS-PGMNAME PIC X(08) VALUE 'COUSR01C' */
-  private readonly programName = 'COUSR01C';
-  /** WS-TRANID PIC X(04) VALUE 'CU01' */
-  private readonly transactionId = 'CU01';
+  /** WS-PGMNAME PIC X(08) VALUE 'COUSR02C' */
+  private readonly programName = 'COUSR02C';
+  /** WS-TRANID PIC X(04) VALUE 'CU02' */
+  private readonly transactionId = 'CU02';
 
   constructor(
     @InjectRepository(UserSecurityRecord)
@@ -72,7 +72,7 @@ export class UserViewController {
   ): Promise<UserDetailResponse> {
     if (session.commarea?.userType !== 'A') {
       throw new ForbiddenException(
-        'Access denied — admin-only transaction CU01',
+        'Access denied — admin-only transaction CU02',
       );
     }
 

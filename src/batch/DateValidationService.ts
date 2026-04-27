@@ -77,7 +77,7 @@ export class DateValidationService {
     }
 
     // Range check — CardDemo uses dates in 1900–2099 range
-    const year = parseInt(normalized.substring(0, 4), 10);
+    const year = Number.parseInt(normalized.substring(0, 4), 10);
     if (year < 1900 || year > 2099) {
       return {
         severity: DateValidationSeverity.UNSUPPORTED_RANGE,
@@ -86,7 +86,7 @@ export class DateValidationService {
       };
     }
 
-    const month = parseInt(normalized.substring(4, 6), 10);
+    const month = Number.parseInt(normalized.substring(4, 6), 10);
     if (month < 1 || month > 12) {
       return {
         severity: DateValidationSeverity.INVALID_MONTH,
