@@ -1,0 +1,491 @@
+{
+  "generated": "2026-02-28",
+  "methodology": "6-dimension scoring on 1-5 scale; composite = CF*0.20 + CC*0.25 + DC*0.15 + DB*0.15 + INT*0.15 + BC*0.10",
+  "dimensions": {
+    "CF": "Control Flow Complexity",
+    "CC": "CICS Coupling",
+    "DC": "Data Complexity",
+    "DB": "Database Complexity",
+    "INT": "Integration Complexity",
+    "BC": "Business Criticality"
+  },
+  "difficulty_bands": {
+    "easy":      "1.0-2.0",
+    "moderate":  "2.0-3.0",
+    "hard":      "3.0-4.0",
+    "very_hard": "4.0-5.0"
+  },
+  "assembler_programs": [
+    {
+      "program_id": "COBDATFT",
+      "language": "Assembler",
+      "note": "Manual reimplementation required — no COBOL complexity score applicable",
+      "called_by": ["CBACT01C"],
+      "recommendation": "Replace with Java LocalDate formatter"
+    },
+    {
+      "program_id": "MVSWAIT",
+      "language": "Assembler",
+      "note": "Manual reimplementation required — no COBOL complexity score applicable",
+      "called_by": ["COBSWAIT"],
+      "recommendation": "Replace with Thread.sleep()"
+    }
+  ],
+  "programs": [
+    {
+      "program_id": "COACTUPC",
+      "variant": "main",
+      "type": "CICS Online",
+      "lines_of_code": 3368,
+      "scores": { "CF": 5, "CC": 4, "DC": 5, "DB": 1, "INT": 3, "BC": 5 },
+      "composite": 3.85,
+      "difficulty": "hard",
+      "key_risks": ["51 GO TO statements", "43 REDEFINES", "4236 lines largest program", "32 reference modifications", "CSSETATY COPY REPLACING x39", "CSLKPCDY 1318-line lookup table", "SYNCPOINT"]
+    },
+    {
+      "program_id": "COCRDUPC",
+      "variant": "main",
+      "type": "CICS Online",
+      "lines_of_code": 1195,
+      "scores": { "CF": 4, "CC": 4, "DC": 4, "DB": 1, "INT": 3, "BC": 4 },
+      "composite": 3.40,
+      "difficulty": "hard",
+      "key_risks": ["21 GO TO statements", "2 PERFORM THRU", "8 REDEFINES", "106 ref-mod/pattern occurrences"]
+    },
+    {
+      "program_id": "COCRDLIC",
+      "variant": "main",
+      "type": "CICS Online",
+      "lines_of_code": 1093,
+      "scores": { "CF": 4, "CC": 4, "DC": 4, "DB": 1, "INT": 3, "BC": 3 },
+      "composite": 3.30,
+      "difficulty": "hard",
+      "key_risks": ["16 GO TO statements", "8 REDEFINES", "VSAM STARTBR/READNEXT/ENDBR browse loop", "HANDLE ABEND", "1459 lines"]
+    },
+    {
+      "program_id": "CBSTM03A",
+      "variant": "main",
+      "type": "Batch",
+      "lines_of_code": 784,
+      "scores": { "CF": 5, "CC": 1, "DC": 5, "DB": 1, "INT": 3, "BC": 4 },
+      "composite": 3.00,
+      "difficulty": "hard",
+      "key_risks": ["ALTER statements (4)", "15 GO TO + 2 PERFORM THRU", "POINTER usage (4)", "PSA/TCB/TIOT control block addressing", "2D OCCURS arrays", "HTML generation in COBOL"]
+    },
+    {
+      "program_id": "CORPT00C",
+      "variant": "main",
+      "type": "CICS Online",
+      "lines_of_code": 498,
+      "scores": { "CF": 2, "CC": 5, "DC": 3, "DB": 1, "INT": 3, "BC": 3 },
+      "composite": 3.00,
+      "difficulty": "hard",
+      "key_risks": ["CICS START (async batch initiation)", "Bridges online-to-batch boundary", "CSUTLDPY inline date procedure copybook"]
+    },
+    {
+      "program_id": "COBIL00C",
+      "variant": "main",
+      "type": "CICS Online",
+      "lines_of_code": 420,
+      "scores": { "CF": 1, "CC": 4, "DC": 3, "DB": 1, "INT": 4, "BC": 5 },
+      "composite": 2.90,
+      "difficulty": "moderate",
+      "key_risks": ["VSAM alternate index access (CXACAIX)", "10 distinct CICS commands", "Financial payment posting", "Updates account balance"]
+    },
+    {
+      "program_id": "COTRN02C",
+      "variant": "main",
+      "type": "CICS Online",
+      "lines_of_code": 614,
+      "scores": { "CF": 1, "CC": 4, "DC": 4, "DB": 1, "INT": 3, "BC": 5 },
+      "composite": 2.90,
+      "difficulty": "moderate",
+      "key_risks": ["15 reference modifications", "26 EVALUATE blocks", "Date validation via CSUTLDTC", "Financial transaction creation", "CSUTLDPY+CSUTLDWY date logic"]
+    },
+    {
+      "program_id": "COCRDSLC",
+      "variant": "main",
+      "type": "CICS Online",
+      "lines_of_code": 642,
+      "scores": { "CF": 3, "CC": 4, "DC": 3, "DB": 1, "INT": 2, "BC": 3 },
+      "composite": 2.80,
+      "difficulty": "moderate",
+      "key_risks": ["9 GO TO statements", "6 REDEFINES", "VSAM STARTBR/READNEXT/ENDBR browse"]
+    },
+    {
+      "program_id": "COPAUS1C",
+      "variant": "authorization-ims-db2-mq",
+      "type": "CICS Online IMS",
+      "lines_of_code": 513,
+      "scores": { "CF": 1, "CC": 3, "DC": 3, "DB": 1, "INT": 5, "BC": 5 },
+      "composite": 2.80,
+      "difficulty": "moderate",
+      "key_risks": ["IMS DL/I via CBLTDLI", "OCCURS DEPENDING ON", "Payment authorization", "Cross-system CICS+IMS coupling"]
+    },
+    {
+      "program_id": "COPAUS2C",
+      "variant": "authorization-ims-db2-mq",
+      "type": "CICS Online IMS",
+      "lines_of_code": 207,
+      "scores": { "CF": 1, "CC": 3, "DC": 2, "DB": 2, "INT": 5, "BC": 5 },
+      "composite": 2.80,
+      "difficulty": "moderate",
+      "key_risks": ["IMS DL/I via CBLTDLI", "4 EXEC SQL (not captured in inventory)", "Mixed IMS+DB2 access pattern", "Authorization confirmation"]
+    },
+    {
+      "program_id": "COACCT01",
+      "variant": "vsam-mq",
+      "type": "CICS Online MQ",
+      "lines_of_code": 527,
+      "scores": { "CF": 1, "CC": 4, "DC": 2, "DB": 1, "INT": 5, "BC": 4 },
+      "composite": 2.80,
+      "difficulty": "moderate",
+      "key_risks": ["IBM MQ PUT integration", "Event publishing pattern", "VSAM + MQ dual write"]
+    },
+    {
+      "program_id": "COACTVWC",
+      "variant": "main",
+      "type": "CICS Online",
+      "lines_of_code": 703,
+      "scores": { "CF": 3, "CC": 3, "DC": 3, "DB": 1, "INT": 3, "BC": 3 },
+      "composite": 2.70,
+      "difficulty": "moderate",
+      "key_risks": ["9 GO TO statements", "2 REDEFINES", "1 PERFORM THRU", "14 copybooks"]
+    },
+    {
+      "program_id": "COPAUA0C",
+      "variant": "authorization-ims-db2-mq",
+      "type": "CICS Online IMS",
+      "lines_of_code": 872,
+      "scores": { "CF": 1, "CC": 3, "DC": 2, "DB": 1, "INT": 5, "BC": 5 },
+      "composite": 2.65,
+      "difficulty": "moderate",
+      "key_risks": ["IMS DL/I via CBLTDLI", "Authorization inquiry", "Cross-system CICS+IMS"]
+    },
+    {
+      "program_id": "COPAUS0C",
+      "variant": "authorization-ims-db2-mq",
+      "type": "CICS Online IMS",
+      "lines_of_code": 877,
+      "scores": { "CF": 1, "CC": 3, "DC": 2, "DB": 1, "INT": 5, "BC": 5 },
+      "composite": 2.65,
+      "difficulty": "moderate",
+      "key_risks": ["IMS DL/I via CBLTDLI", "Authorization setup management", "Cross-system CICS+IMS"]
+    },
+    {
+      "program_id": "CODATE01",
+      "variant": "vsam-mq",
+      "type": "CICS Online MQ",
+      "lines_of_code": 446,
+      "scores": { "CF": 1, "CC": 5, "DC": 1, "DB": 1, "INT": 4, "BC": 1 },
+      "composite": 2.45,
+      "difficulty": "moderate",
+      "key_risks": ["CICS START + RETRIEVE async pattern", "Asynchronous task scheduling", "CICS interval control"]
+    },
+    {
+      "program_id": "COTRTLIC",
+      "variant": "transaction-type-db2",
+      "type": "CICS Online DB2",
+      "lines_of_code": 1783,
+      "scores": { "CF": 1, "CC": 3, "DC": 2, "DB": 3, "INT": 3, "BC": 3 },
+      "composite": 2.45,
+      "difficulty": "moderate",
+      "key_risks": ["DB2 cursor (DECLARE CURSOR/OPEN/FETCH/CLOSE)", "16 EXEC SQL statements", "2098 lines"]
+    },
+    {
+      "program_id": "COTRN00C",
+      "variant": "main",
+      "type": "CICS Online",
+      "lines_of_code": 529,
+      "scores": { "CF": 1, "CC": 4, "DC": 3, "DB": 1, "INT": 2, "BC": 3 },
+      "composite": 2.40,
+      "difficulty": "moderate",
+      "key_risks": ["VSAM STARTBR/READNEXT/READPREV/ENDBR bidirectional browse", "9 distinct CICS commands"]
+    },
+    {
+      "program_id": "CBSTM03B",
+      "variant": "main",
+      "type": "Called Subprogram",
+      "lines_of_code": 162,
+      "scores": { "CF": 4, "CC": 1, "DC": 3, "DB": 1, "INT": 3, "BC": 2 },
+      "composite": 2.30,
+      "difficulty": "moderate",
+      "key_risks": ["13 GO TO statements", "4 PERFORM THRU ranges", "4-file I/O dispatcher", "Tightly coupled to CBSTM03A"]
+    },
+    {
+      "program_id": "COTRTUPC",
+      "variant": "transaction-type-db2",
+      "type": "CICS Online DB2",
+      "lines_of_code": 1447,
+      "scores": { "CF": 1, "CC": 3, "DC": 2, "DB": 2, "INT": 3, "BC": 3 },
+      "composite": 2.30,
+      "difficulty": "moderate",
+      "key_risks": ["7 EXEC SQL (SELECT/INSERT/UPDATE/DELETE)", "1702 lines", "DB2 CRUD via CICS"]
+    },
+    {
+      "program_id": "COUSR00C",
+      "variant": "main",
+      "type": "CICS Online",
+      "lines_of_code": 531,
+      "scores": { "CF": 1, "CC": 4, "DC": 2, "DB": 1, "INT": 2, "BC": 3 },
+      "composite": 2.25,
+      "difficulty": "moderate",
+      "key_risks": ["VSAM STARTBR/READNEXT/ENDBR browse", "8 distinct CICS commands"]
+    },
+    {
+      "program_id": "CBPAUP0C",
+      "variant": "authorization-ims-db2-mq",
+      "type": "Batch IMS",
+      "lines_of_code": 328,
+      "scores": { "CF": 1, "CC": 1, "DC": 2, "DB": 1, "INT": 5, "BC": 5 },
+      "composite": 2.15,
+      "difficulty": "moderate",
+      "key_risks": ["IMS DL/I via CBLTDLI", "Payment authorization workflow", "Batch-to-IMS coupling"]
+    },
+    {
+      "program_id": "COSGN00C",
+      "variant": "main",
+      "type": "CICS Online",
+      "lines_of_code": 172,
+      "scores": { "CF": 1, "CC": 3, "DC": 2, "DB": 1, "INT": 2, "BC": 4 },
+      "composite": 2.10,
+      "difficulty": "moderate",
+      "key_risks": ["Application-level authentication (no RACF)", "Security boundary — must migrate with care", "Credential comparison logic"]
+    },
+    {
+      "program_id": "CBIMPORT",
+      "variant": "main",
+      "type": "Batch",
+      "lines_of_code": 337,
+      "scores": { "CF": 1, "CC": 1, "DC": 4, "DB": 1, "INT": 4, "BC": 3 },
+      "composite": 2.10,
+      "difficulty": "moderate",
+      "key_risks": ["10 reference modifications", "Multi-record type dispatching (C/A/X/T/D)", "7 output files", "CVEXPORT complex layout"]
+    },
+    {
+      "program_id": "CBTRN02C",
+      "variant": "main",
+      "type": "Batch",
+      "lines_of_code": 619,
+      "scores": { "CF": 1, "CC": 1, "DC": 3, "DB": 1, "INT": 3, "BC": 5 },
+      "composite": 2.00,
+      "difficulty": "moderate",
+      "key_risks": ["Revenue-critical transaction posting", "Updates account balances (financial mutation)", "5 VSAM files with I-O update"]
+    },
+    {
+      "program_id": "COADM01C",
+      "variant": "main",
+      "type": "CICS Online",
+      "lines_of_code": 189,
+      "scores": { "CF": 1, "CC": 3, "DC": 2, "DB": 1, "INT": 2, "BC": 3 },
+      "composite": 2.00,
+      "difficulty": "moderate",
+      "key_risks": ["CICS ASKTIME/FORMATTIME", "Admin entry-point navigation hub"]
+    },
+    {
+      "program_id": "COMEN01C",
+      "variant": "main",
+      "type": "CICS Online",
+      "lines_of_code": 213,
+      "scores": { "CF": 1, "CC": 3, "DC": 2, "DB": 1, "INT": 2, "BC": 3 },
+      "composite": 2.00,
+      "difficulty": "moderate",
+      "key_risks": ["CICS ASKTIME/FORMATTIME", "Main-menu navigation hub"]
+    },
+    {
+      "program_id": "COTRN01C",
+      "variant": "main",
+      "type": "CICS Online",
+      "lines_of_code": 231,
+      "scores": { "CF": 1, "CC": 3, "DC": 2, "DB": 1, "INT": 2, "BC": 3 },
+      "composite": 2.00,
+      "difficulty": "moderate",
+      "key_risks": ["Standard CICS read-display pattern"]
+    },
+    {
+      "program_id": "COUSR01C",
+      "variant": "main",
+      "type": "CICS Online",
+      "lines_of_code": 198,
+      "scores": { "CF": 1, "CC": 3, "DC": 2, "DB": 1, "INT": 2, "BC": 3 },
+      "composite": 2.00,
+      "difficulty": "moderate",
+      "key_risks": ["Standard CICS read-display pattern"]
+    },
+    {
+      "program_id": "COUSR02C",
+      "variant": "main",
+      "type": "CICS Online",
+      "lines_of_code": 303,
+      "scores": { "CF": 1, "CC": 3, "DC": 2, "DB": 1, "INT": 2, "BC": 3 },
+      "composite": 2.00,
+      "difficulty": "moderate",
+      "key_risks": ["User security record creation", "VSAM I-O write path"]
+    },
+    {
+      "program_id": "COUSR03C",
+      "variant": "main",
+      "type": "CICS Online",
+      "lines_of_code": 251,
+      "scores": { "CF": 1, "CC": 3, "DC": 2, "DB": 1, "INT": 2, "BC": 3 },
+      "composite": 2.00,
+      "difficulty": "moderate",
+      "key_risks": ["User security record deletion", "VSAM DELETE path"]
+    },
+    {
+      "program_id": "CBEXPORT",
+      "variant": "main",
+      "type": "Batch",
+      "lines_of_code": 396,
+      "scores": { "CF": 1, "CC": 1, "DC": 3, "DB": 1, "INT": 4, "BC": 3 },
+      "composite": 1.95,
+      "difficulty": "easy",
+      "key_risks": ["6 VSAM input files", "Multi-record type output (CVEXPORT layout)", "Data migration tooling dependency"]
+    },
+    {
+      "program_id": "CBACT04C",
+      "variant": "main",
+      "type": "Batch",
+      "lines_of_code": 552,
+      "scores": { "CF": 1, "CC": 1, "DC": 3, "DB": 1, "INT": 2, "BC": 5 },
+      "composite": 1.85,
+      "difficulty": "easy",
+      "key_risks": ["Interest rate calculation (financial)", "Applies discount-group rates to account balances", "PARM date input (YYYYMMDDXX JCL format)"]
+    },
+    {
+      "program_id": "CBACT01C",
+      "variant": "main",
+      "type": "Batch",
+      "lines_of_code": 358,
+      "scores": { "CF": 1, "CC": 1, "DC": 2, "DB": 1, "INT": 5, "BC": 2 },
+      "composite": 1.85,
+      "difficulty": "easy",
+      "key_risks": ["Calls COBDATFT assembler program", "Assembler dependency must be replaced first"]
+    },
+    {
+      "program_id": "PAUDBUNL",
+      "variant": "authorization-ims-db2-mq",
+      "type": "Batch IMS",
+      "lines_of_code": 269,
+      "scores": { "CF": 1, "CC": 1, "DC": 1, "DB": 1, "INT": 5, "BC": 3 },
+      "composite": 1.80,
+      "difficulty": "easy",
+      "key_risks": ["IMS DL/I via CBLTDLI", "IMS extract utility"]
+    },
+    {
+      "program_id": "COBSWAIT",
+      "variant": "main",
+      "type": "Batch",
+      "lines_of_code": 13,
+      "scores": { "CF": 1, "CC": 1, "DC": 1, "DB": 1, "INT": 5, "BC": 1 },
+      "composite": 1.60,
+      "difficulty": "easy",
+      "key_risks": ["Calls MVSWAIT assembler program", "Replace with Thread.sleep() once MVSWAIT is eliminated"]
+    },
+    {
+      "program_id": "CBTRN01C",
+      "variant": "main",
+      "type": "Batch",
+      "lines_of_code": 415,
+      "scores": { "CF": 1, "CC": 1, "DC": 3, "DB": 1, "INT": 2, "BC": 2 },
+      "composite": 1.55,
+      "difficulty": "easy",
+      "key_risks": ["6 copybooks", "Report-only output (no data mutation)"]
+    },
+    {
+      "program_id": "CBTRN03C",
+      "variant": "main",
+      "type": "Batch",
+      "lines_of_code": 545,
+      "scores": { "CF": 1, "CC": 1, "DC": 3, "DB": 1, "INT": 2, "BC": 2 },
+      "composite": 1.55,
+      "difficulty": "easy",
+      "key_risks": ["5 copybooks", "Report-only output (no data mutation)"]
+    },
+    {
+      "program_id": "DBUNLDGS",
+      "variant": "authorization-ims-db2-mq",
+      "type": "Batch DB2",
+      "lines_of_code": 311,
+      "scores": { "CF": 1, "CC": 1, "DC": 1, "DB": 3, "INT": 2, "BC": 2 },
+      "composite": 1.55,
+      "difficulty": "easy",
+      "key_risks": ["DB2 cursor unload", "Extract-only utility"]
+    },
+    {
+      "program_id": "CSUTLDTC",
+      "variant": "main",
+      "type": "Called Subprogram",
+      "lines_of_code": 114,
+      "scores": { "CF": 1, "CC": 1, "DC": 3, "DB": 1, "INT": 2, "BC": 1 },
+      "composite": 1.45,
+      "difficulty": "easy",
+      "key_risks": ["IBM LE CEEDAYS API dependency", "3 REDEFINES on date structure", "Replace with Java java.time.LocalDate"]
+    },
+    {
+      "program_id": "CBACT02C",
+      "variant": "main",
+      "type": "Batch",
+      "lines_of_code": 129,
+      "scores": { "CF": 1, "CC": 1, "DC": 2, "DB": 1, "INT": 2, "BC": 2 },
+      "composite": 1.40,
+      "difficulty": "easy",
+      "key_risks": ["Standalone VSAM read utility"]
+    },
+    {
+      "program_id": "CBACT03C",
+      "variant": "main",
+      "type": "Batch",
+      "lines_of_code": 130,
+      "scores": { "CF": 1, "CC": 1, "DC": 2, "DB": 1, "INT": 2, "BC": 2 },
+      "composite": 1.40,
+      "difficulty": "easy",
+      "key_risks": ["Standalone VSAM read utility"]
+    },
+    {
+      "program_id": "CBCUS01C",
+      "variant": "main",
+      "type": "Batch",
+      "lines_of_code": 130,
+      "scores": { "CF": 1, "CC": 1, "DC": 2, "DB": 1, "INT": 2, "BC": 2 },
+      "composite": 1.40,
+      "difficulty": "easy",
+      "key_risks": ["Standalone VSAM read utility"]
+    },
+    {
+      "program_id": "PAUDBLOD",
+      "variant": "authorization-ims-db2-mq",
+      "type": "Batch DB2",
+      "lines_of_code": 314,
+      "scores": { "CF": 1, "CC": 1, "DC": 1, "DB": 2, "INT": 2, "BC": 2 },
+      "composite": 1.40,
+      "difficulty": "easy",
+      "key_risks": ["DB2 bulk load utility"]
+    },
+    {
+      "program_id": "COBTUPDT",
+      "variant": "transaction-type-db2",
+      "type": "Batch DB2",
+      "lines_of_code": 201,
+      "scores": { "CF": 1, "CC": 1, "DC": 1, "DB": 2, "INT": 1, "BC": 3 },
+      "composite": 1.35,
+      "difficulty": "easy",
+      "key_risks": ["Simple DB2 batch update"]
+    }
+  ],
+  "summary": {
+    "total_programs_scored": 46,
+    "by_difficulty": {
+      "easy_1_0_to_2_0": 22,
+      "moderate_2_0_to_3_0": 20,
+      "hard_3_0_to_4_0": 5,
+      "very_hard_4_0_to_5_0": 0
+    },
+    "highest_composite": { "program": "COACTUPC", "score": 3.85 },
+    "lowest_composite": { "program": "COBTUPDT", "score": 1.35 },
+    "programs_above_3_0": ["COACTUPC", "COCRDUPC", "COCRDLIC", "CBSTM03A", "CORPT00C"],
+    "assembler_blockers": ["COBDATFT", "MVSWAIT"],
+    "ims_programs": ["CBPAUP0C", "COPAUA0C", "COPAUS0C", "COPAUS1C", "COPAUS2C", "PAUDBUNL"],
+    "mq_programs": ["COACCT01", "CODATE01"]
+  }
+}

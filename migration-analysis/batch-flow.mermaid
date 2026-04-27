@@ -1,0 +1,175 @@
+%% CardDemo — Batch Job Flow Diagrams
+%%
+%% Sub-diagram A: Daily Transaction Processing Pipeline
+%% (Run sequence: POSTTRAN → INTCALC → COMBTRAN → TRANREPT)
+
+graph TD
+    %% ── Input Data ───────────────────────────────────────────────────
+    DALYTRAN[/"AWS.M2.CARDDEMO\n.DALYTRAN.PS\nDaily Transactions\n(external input)"/]:::input
+    CARDXREF_A[("CARDXREF\nKSDS\nCard-Acct Xref")]:::vsam
+    ACCTFILE_A[("ACCTFILE\nKSDS\nAccount Master")]:::vsam
+    TRANSACT_A[("TRANSACT\nKSDS\nTransaction Master")]:::vsam
+    DISCGRP_A[("DISCGRP\nKSDS\nDiscount Groups")]:::vsam
+
+    %% ── Step 1: POSTTRAN ─────────────────────────────────────────────
+    POSTTRAN_JOB["JOB: POSTTRAN\nEXEC PGM=CBTRN02C"]:::job
+    DALYREJS_OUT[/"DALYREJS(+1)\nReject GDG\n(invalid txns)"/]:::gdg
+
+    %% ── Step 2: INTCALC ──────────────────────────────────────────────
+    INTCALC_JOB["JOB: INTCALC\nEXEC PGM=CBACT04C\nPARM=YYYYMMDDXX"]:::job
+    TCATBALF_A[("TCATBALF\nKSDS\nTxn Category\nBalances")]:::vsam
+    SYSTRAN_OUT[/"SYSTRAN(+1)\nInterest Txns GDG"/]:::gdg
+
+    %% ── Step 3: COMBTRAN ─────────────────────────────────────────────
+    COMBTRAN_JOB["JOB: COMBTRAN\nEXEC PGM=SORT\n+ IDCAMS REPRO"]:::job
+    TRANSACT_BKP[/"TRANSACT.BKUP(0)\nTransaction Backup\nBase Generation"/]:::gdg
+    COMBINED[/"TRANSACT.COMBINED(+1)\nCombined Sorted Output"/]:::gdg
+
+    %% ── Step 4: TRANREPT ─────────────────────────────────────────────
+    TRANREPT_JOB["JOB: TRANREPT\nSTEP05R: EXEC PROC=REPROC\nSTEP05R: EXEC PGM=SORT\nSTEP10R: EXEC PGM=CBTRN03C"]:::job
+    TRANSACT_BKUP1[/"TRANSACT.BKUP(+1)\nBackup of TRANSACT"/]:::gdg
+    TRANSACT_DALY[/"TRANSACT.DALY(+1)\nDate-Filtered Sorted Txns"/]:::gdg
+    TRANREPT_OUT[/"TRANREPT(+1)\nFormatted Transaction Report"/]:::output
+
+    %% ── Pipeline flow ────────────────────────────────────────────────
+    DALYTRAN       --> POSTTRAN_JOB
+    CARDXREF_A     --> POSTTRAN_JOB
+    ACCTFILE_A     --> POSTTRAN_JOB
+    TRANSACT_A     --> POSTTRAN_JOB
+    POSTTRAN_JOB   -->|updates| TRANSACT_A
+    POSTTRAN_JOB   -->|updates| ACCTFILE_A
+    POSTTRAN_JOB   -->|writes rejects| DALYREJS_OUT
+
+    TRANSACT_A     --> INTCALC_JOB
+    TCATBALF_A     --> INTCALC_JOB
+    DISCGRP_A      --> INTCALC_JOB
+    CARDXREF_A     --> INTCALC_JOB
+    INTCALC_JOB    -->|updates| ACCTFILE_A
+    INTCALC_JOB    -->|writes interest txns| SYSTRAN_OUT
+
+    TRANSACT_BKP   --> COMBTRAN_JOB
+    SYSTRAN_OUT    -->|SYSTRAN(0) = current gen| COMBTRAN_JOB
+    COMBTRAN_JOB   -->|SORT + REPRO| TRANSACT_A
+    COMBTRAN_JOB   -->|intermediate| COMBINED
+
+    TRANSACT_A     --> TRANREPT_JOB
+    TRANREPT_JOB   -->|REPROC backup| TRANSACT_BKUP1
+    TRANREPT_JOB   -->|SORT filter| TRANSACT_DALY
+    TRANSACT_DALY  --> TRANREPT_JOB
+    TRANREPT_JOB   -->|CBTRN03C report| TRANREPT_OUT
+
+    classDef job    fill:#f39c12,stroke:#d68910,color:#fff
+    classDef input  fill:#3498db,stroke:#2980b9,color:#fff
+    classDef vsam   fill:#e67e22,stroke:#d35400,color:#fff
+    classDef gdg    fill:#c0392b,stroke:#922b21,color:#fff
+    classDef output fill:#27ae60,stroke:#1e8449,color:#fff
+
+---
+
+%% Sub-diagram B: Account Statement Generation Pipeline
+
+graph TD
+    %% ── Inputs ───────────────────────────────────────────────────────
+    TRANSACT_B[("TRANSACT VSAM\nTransaction Master")]:::vsam
+    ACCTFILE_B[("ACCTFILE VSAM\nAccount Master")]:::vsam
+    CUSTFILE_B[("CUSTFILE VSAM\nCustomer Master")]:::vsam
+    CARDXREF_B[("CARDXREF VSAM\nCard-Acct Xref")]:::vsam
+
+    %% ── CREASTMT Job ─────────────────────────────────────────────────
+    CREASTMT_SORT["CREASTMT/STEP1\nEXEC PGM=SORT\nSort by card number"]:::job
+    CREASTMT_STMT["CREASTMT/STEP2\nEXEC PGM=CBSTM03A\nGenerate statements"]:::job
+
+    %% ── Intermediate ─────────────────────────────────────────────────
+    SORTED_TXN[/"Sorted Transactions\nWork File"/]:::work
+    CBSTM03B_SUB["CBSTM03B\nFile I/O Subroutine\n(CALL from CBSTM03A)"]:::sub
+
+    %% ── Outputs ──────────────────────────────────────────────────────
+    STMTFILE_TEXT[/"STMTFILE-TEXT\nPlain Text Statements"/]:::output
+    STMTFILE_HTML[/"STMTFILE-HTML\nHTML Statements"/]:::output
+    TXT2PDF[/"TXT2PDF1\nPDF Conversion\n(optional)"/]:::optional
+
+    TRANSACT_B   --> CREASTMT_SORT
+    CREASTMT_SORT -->|sorted output| SORTED_TXN
+    SORTED_TXN   --> CREASTMT_STMT
+    ACCTFILE_B   -->|via CBSTM03B| CBSTM03B_SUB
+    CUSTFILE_B   -->|via CBSTM03B| CBSTM03B_SUB
+    CARDXREF_B   -->|via CBSTM03B| CBSTM03B_SUB
+    CBSTM03B_SUB -->|I/O ops| CREASTMT_STMT
+    CREASTMT_STMT -->|text output| STMTFILE_TEXT
+    CREASTMT_STMT -->|HTML output| STMTFILE_HTML
+    STMTFILE_TEXT -->|optional| TXT2PDF
+
+    classDef job      fill:#f39c12,stroke:#d68910,color:#fff
+    classDef vsam     fill:#e67e22,stroke:#d35400,color:#fff
+    classDef work     fill:#95a5a6,stroke:#7f8c8d,color:#fff
+    classDef sub      fill:#27ae60,stroke:#1e8449,color:#fff
+    classDef output   fill:#2ecc71,stroke:#27ae60,color:#fff
+    classDef optional fill:#bdc3c7,stroke:#95a5a6,color:#333
+
+---
+
+%% Sub-diagram C: Data Export/Import (Migration Support) Pipeline
+
+graph LR
+    %% ── Source VSAM Files ────────────────────────────────────────────
+    ACCT_SRC[("ACCTFILE\nKSDS")]:::vsam
+    CARD_SRC[("CARDFILE\nKSDS")]:::vsam
+    XREF_SRC[("CARDXREF\nKSDS")]:::vsam
+    CUST_SRC[("CUSTFILE\nKSDS")]:::vsam
+    TRAN_SRC[("TRANSACT\nKSDS")]:::vsam
+
+    %% ── Export ───────────────────────────────────────────────────────
+    CBEXPORT_JOB["JOB: CBEXPORT\nEXEC PGM=CBEXPORT\nMulti-entity export"]:::job
+    EXPORT_FILE[/"EXPORT.DATA\nMulti-record file\nC/A/X/T/D records"/]:::seq
+
+    %% ── Import ───────────────────────────────────────────────────────
+    CBIMPORT_JOB["JOB: CBIMPORT\nEXEC PGM=CBIMPORT\nSplit to normalized files"]:::job
+
+    %% ── Target Files ─────────────────────────────────────────────────
+    ACCT_TGT[/"ACCTDATA.IMPORT\nAccount Records"/]:::output
+    CUST_TGT[/"CUSTDATA.IMPORT\nCustomer Records"/]:::output
+    XREF_TGT[/"CARDXREF.IMPORT\nXref Records"/]:::output
+    TRAN_TGT[/"TRANSACT.IMPORT\nTransaction Records"/]:::output
+    ERR_OUT[/"IMPORT.ERRORS\nError Records"/]:::error
+
+    ACCT_SRC   --> CBEXPORT_JOB
+    CARD_SRC   --> CBEXPORT_JOB
+    XREF_SRC   --> CBEXPORT_JOB
+    CUST_SRC   --> CBEXPORT_JOB
+    TRAN_SRC   --> CBEXPORT_JOB
+    CBEXPORT_JOB -->|writes| EXPORT_FILE
+    EXPORT_FILE  -->|reads| CBIMPORT_JOB
+    CBIMPORT_JOB -->|customer| CUST_TGT
+    CBIMPORT_JOB -->|account| ACCT_TGT
+    CBIMPORT_JOB -->|xref| XREF_TGT
+    CBIMPORT_JOB -->|transactions| TRAN_TGT
+    CBIMPORT_JOB -->|errors| ERR_OUT
+
+    classDef job    fill:#f39c12,stroke:#d68910,color:#fff
+    classDef vsam   fill:#e67e22,stroke:#d35400,color:#fff
+    classDef seq    fill:#95a5a6,stroke:#7f8c8d,color:#fff
+    classDef output fill:#27ae60,stroke:#1e8449,color:#fff
+    classDef error  fill:#e74c3c,stroke:#c0392b,color:#fff
+
+---
+
+%% Sub-diagram D: CICS-to-Batch Bridge (CORPT00C → JOBS TD Queue)
+
+graph TD
+    CORPT00C["CORPT00C\nReport Menu\n(CICS Online)"]:::cics
+    CSUTLDTC["CSUTLDTC\nDate Validator"]:::util
+    JOBS_TDQ[("JOBS\nTD Queue\nInternal Reader")]:::queue
+    BATCH_JOB[/"Batch Job JCL\nSubmitted via\nInternal Reader"/]:::jcl
+    TRANREPT_B["Transaction Report\nBatch Execution"]:::batch
+
+    CORPT00C -->|CALL for date validation| CSUTLDTC
+    CORPT00C -->|EXEC CICS START| BATCH_JOB
+    CORPT00C -->|WRITEQ TD| JOBS_TDQ
+    JOBS_TDQ -->|submits JCL| BATCH_JOB
+    BATCH_JOB -->|triggers| TRANREPT_B
+
+    classDef cics  fill:#4f87c4,stroke:#2b5f9e,color:#fff
+    classDef util  fill:#27ae60,stroke:#1e8449,color:#fff
+    classDef queue fill:#9b59b6,stroke:#7d3c98,color:#fff
+    classDef jcl   fill:#f39c12,stroke:#d68910,color:#fff
+    classDef batch fill:#e67e22,stroke:#d35400,color:#fff

@@ -1,0 +1,219 @@
+%% CardDemo — Data Flow Diagram
+%% Shows which programs read/write/update/delete which files and tables
+%% Color coding: programs=blue, VSAM files=orange, DB2 tables=red, IMS=brown
+%%
+%% Sub-diagram A: CICS Online Programs → VSAM Files (via EXEC CICS)
+
+graph LR
+    %% ── CICS Programs ────────────────────────────────────────────────
+    COSGN00C["COSGN00C\nSignon"]:::prog
+    COBIL00C["COBIL00C\nBill Payment"]:::prog
+    COACTVWC["COACTVWC\nAcct View"]:::prog
+    COACTUPC["COACTUPC\nAcct Update"]:::prog
+    COCRDLIC["COCRDLIC\nCard List"]:::prog
+    COCRDSLC["COCRDSLC\nCard Select"]:::prog
+    COCRDUPC["COCRDUPC\nCard Update"]:::prog
+    COTRN00C["COTRN00C\nTxn List"]:::prog
+    COTRN01C["COTRN01C\nTxn View"]:::prog
+    COTRN02C["COTRN02C\nTxn Add"]:::prog
+    COUSR00C["COUSR00C\nUser List"]:::prog
+    COUSR01C["COUSR01C\nUser View"]:::prog
+    COUSR02C["COUSR02C\nUser Add"]:::prog
+    COUSR03C["COUSR03C\nUser Del"]:::prog
+
+    %% ── VSAM Files (CSD names) ───────────────────────────────────────
+    ACCTDAT[("ACCTDAT\nAccount Master\nKSDS")]:::vsam
+    CUSTDAT[("CUSTDAT\nCustomer Master\nKSDS")]:::vsam
+    CARDDAT[("CARDDAT\nCard Master\nKSDS")]:::vsam
+    CCXREF[("CCXREF\nCard-Acct Xref\nKSDS")]:::vsam
+    CXACAIX[("CXACAIX\nXref AIX\nby Account")]:::vsam
+    TRANSACT[("TRANSACT\nTransaction\nKSDS")]:::vsam
+    USRSEC[("USRSEC\nUser Security\nKSDS")]:::vsam
+
+    %% ── CICS File Access ─────────────────────────────────────────────
+    %% USRSEC
+    COSGN00C -->|READ| USRSEC
+    COUSR00C -->|BROWSE| USRSEC
+    COUSR01C -->|READ| USRSEC
+    COUSR02C -->|READ| USRSEC
+    COUSR02C -->|WRITE| USRSEC
+    COUSR03C -->|READ| USRSEC
+    COUSR03C -->|DELETE| USRSEC
+
+    %% ACCTDAT
+    COBIL00C -->|READ| ACCTDAT
+    COBIL00C -->|REWRITE| ACCTDAT
+    COACTVWC -->|READ| ACCTDAT
+    COACTUPC -->|READ| ACCTDAT
+    COACTUPC -->|REWRITE| ACCTDAT
+
+    %% CUSTDAT
+    COACTVWC -->|READ| CUSTDAT
+    COACTUPC -->|READ| CUSTDAT
+    COACTUPC -->|REWRITE| CUSTDAT
+
+    %% CARDDAT
+    COACTVWC -->|READ| CARDDAT
+    COACTUPC -->|READ| CARDDAT
+    COACTUPC -->|REWRITE| CARDDAT
+    COCRDLIC -->|READ| CARDDAT
+    COCRDUPC -->|READ| CARDDAT
+    COCRDUPC -->|WRITE| CARDDAT
+    COCRDUPC -->|REWRITE| CARDDAT
+
+    %% CCXREF
+    COCRDLIC -->|STARTBR/READNEXT| CCXREF
+    COCRDSLC -->|READ+BROWSE| CCXREF
+    COCRDUPC -->|READ| CCXREF
+    COACTUPC -->|READ| CCXREF
+    COACTVWC -->|READ| CCXREF
+
+    %% CXACAIX (alternate index on CCXREF by account)
+    COBIL00C -->|READ via AIX| CXACAIX
+    COTRN02C -->|READ| CXACAIX
+
+    %% TRANSACT
+    COBIL00C -->|WRITE| TRANSACT
+    COTRN00C -->|BROWSE| TRANSACT
+    COTRN01C -->|READ| TRANSACT
+    COTRN02C -->|WRITE| TRANSACT
+
+    %% Styles
+    classDef prog fill:#4f87c4,stroke:#2b5f9e,color:#fff
+    classDef vsam fill:#e67e22,stroke:#d35400,color:#fff
+
+---
+
+%% Sub-diagram B: Batch Programs → VSAM Files (via COBOL FD)
+
+graph LR
+    %% ── Batch Programs ───────────────────────────────────────────────
+    CBACT01C["CBACT01C\nAcct Reader"]:::prog
+    CBACT02C["CBACT02C\nCard Reader"]:::prog
+    CBACT03C["CBACT03C\nXref Reader"]:::prog
+    CBACT04C["CBACT04C\nInterest Calc"]:::prog
+    CBCUS01C["CBCUS01C\nCust Reader"]:::prog
+    CBEXPORT["CBEXPORT\nData Export"]:::prog
+    CBIMPORT["CBIMPORT\nData Import"]:::prog
+    CBSTM03A["CBSTM03A\nStmt Gen"]:::prog
+    CBTRN01C["CBTRN01C\nTxn Validator"]:::prog
+    CBTRN02C["CBTRN02C\nTxn Poster"]:::prog
+    CBTRN03C["CBTRN03C\nTxn Reporter"]:::prog
+
+    %% ── VSAM Files ───────────────────────────────────────────────────
+    ACCTFILE[("ACCTFILE\nAccount Master")]:::vsam
+    CARDFILE[("CARDFILE\nCard Master")]:::vsam
+    CARDXREF[("CARDXREF\nCard-Acct Xref")]:::vsam
+    CUSTFILE[("CUSTFILE\nCustomer Master")]:::vsam
+    TRANSACT_B[("TRANSACT\nTransaction Master")]:::vsam
+    DISCGRP[("DISCGRP\nDiscount Groups")]:::vsam
+
+    %% ── Sequential / Work Files ──────────────────────────────────────
+    DALYTRAN[/"DALYTRAN\nDaily Transactions\n(INPUT)"/]:::seq
+    EXPFILE[/"EXPORT-FILE\nMigration Export"/]:::seq
+    STMTFILE[/"STMTFILE\nStatement Output"/]:::seq
+    REPORTFILE[/"REPORT-FILE\nReport Output"/]:::seq
+    DALYREJS[/"DALYREJS(+1)\nReject GDG"/]:::gdg
+    SYSTRAN[/"SYSTRAN(+1)\nInterest Txns GDG"/]:::gdg
+
+    %% ── Access edges ─────────────────────────────────────────────────
+    CBACT01C -->|INPUT READ| ACCTFILE
+    CBACT04C -->|I-O UPDATE| ACCTFILE
+    CBTRN01C -->|INPUT READ| ACCTFILE
+    CBTRN02C -->|I-O UPDATE| ACCTFILE
+    CBSTM03A -->|READ via B| ACCTFILE
+    CBEXPORT  -->|INPUT READ| ACCTFILE
+    CBIMPORT  -->|OUTPUT WRITE| ACCTFILE
+
+    CBACT02C -->|INPUT READ| CARDFILE
+    COCRDLIC_B["COCRDLIC\nCard List"]:::prog
+    COCRDLIC_B -->|INPUT READ| CARDFILE
+    COCRDUPC_B["COCRDUPC\nCard Update"]:::prog
+    COCRDUPC_B -->|I-O| CARDFILE
+    CBEXPORT  -->|INPUT READ| CARDFILE
+    CBIMPORT  -->|OUTPUT WRITE| CARDFILE
+
+    CBACT03C -->|INPUT READ| CARDXREF
+    CBACT04C -->|INPUT READ| CARDXREF
+    CBTRN01C -->|INPUT READ| CARDXREF
+    CBTRN02C -->|INPUT READ| CARDXREF
+    CBSTM03A -->|READ via B| CARDXREF
+    CBEXPORT  -->|INPUT READ| CARDXREF
+    CBIMPORT  -->|OUTPUT WRITE| CARDXREF
+
+    CBCUS01C  -->|INPUT READ| CUSTFILE
+    CBTRN01C  -->|INPUT READ| CUSTFILE
+    CBSTM03A  -->|READ via B| CUSTFILE
+    CBEXPORT  -->|INPUT READ| CUSTFILE
+    CBIMPORT  -->|OUTPUT WRITE| CUSTFILE
+
+    CBACT04C  -->|I-O UPDATE| TRANSACT_B
+    CBEXPORT  -->|INPUT READ| TRANSACT_B
+    CBIMPORT  -->|OUTPUT WRITE| TRANSACT_B
+    CBTRN02C  -->|I-O UPDATE| TRANSACT_B
+    CBTRN03C  -->|INPUT READ| TRANSACT_B
+
+    CBACT04C  -->|INPUT READ| DISCGRP
+
+    %% Sequential/work files
+    CBTRN01C  -->|INPUT| DALYTRAN
+    CBTRN02C  -->|INPUT| DALYTRAN
+    CBTRN02C  -->|WRITE| DALYREJS
+    CBACT04C  -->|WRITE GDG| SYSTRAN
+
+    CBEXPORT  -->|WRITE| EXPFILE
+    CBIMPORT  -->|READ| EXPFILE
+
+    CBSTM03A  -->|WRITE| STMTFILE
+    CBTRN01C  -->|WRITE| REPORTFILE
+    CBTRN03C  -->|WRITE| REPORTFILE
+
+    classDef prog fill:#4f87c4,stroke:#2b5f9e,color:#fff
+    classDef vsam fill:#e67e22,stroke:#d35400,color:#fff
+    classDef seq  fill:#95a5a6,stroke:#7f8c8d,color:#fff
+    classDef gdg  fill:#c0392b,stroke:#a93226,color:#fff
+
+---
+
+%% Sub-diagram C: DB2 and IMS Data Access (Variant Modules)
+
+graph TD
+    %% ── DB2 Variant Programs ─────────────────────────────────────────
+    COTRTLIC["COTRTLIC\nTxnType List\n[DB2 CICS]"]:::db2prog
+    COTRTUPC["COTRTUPC\nTxnType Update\n[DB2 CICS]"]:::db2prog
+    COBTUPDT["COBTUPDT\nDB2 Bulk Update\n[Batch]"]:::db2prog
+
+    %% ── IMS Variant Programs ─────────────────────────────────────────
+    CBPAUP0C["CBPAUP0C\nAuth Processor\n[IMS Batch]"]:::imsprog
+    COPAUA0C["COPAUA0C\nAuth Inquiry\n[IMS CICS]"]:::imsprog
+    COPAUS0C["COPAUS0C\nAuth Setup\n[IMS CICS]"]:::imsprog
+    PAUDBUNL["PAUDBUNL\nIMS Unload"]:::imsprog
+    DBUNLDGS["DBUNLDGS\nDB2 Unload"]:::db2prog
+    PAUDBLOD["PAUDBLOD\nDB2 Load"]:::db2prog
+
+    %% ── DB2 Tables ───────────────────────────────────────────────────
+    TRAN_TYPE[("TRAN_TYPE\nTransaction Type\n[DB2]")]:::db2
+    TRAN_CAT[("TRAN_CATEGORY\nTransaction Category\n[DB2]")]:::db2
+    AUTH_TABLES[("AUTH_TABLES\nAuthorization\n[DB2]")]:::db2
+
+    %% ── IMS Databases ────────────────────────────────────────────────
+    AUTH_IMS[("PAYMENT_AUTH\nAuthorization DB\n[IMS DL/I]")]:::ims
+
+    %% ── DB2 Access ───────────────────────────────────────────────────
+    COTRTLIC -->|SELECT / FETCH cursor| TRAN_TYPE
+    COTRTUPC -->|SELECT, INSERT, UPDATE, DELETE| TRAN_TYPE
+    COTRTUPC -->|SELECT, INSERT| TRAN_CAT
+    COBTUPDT -->|SELECT, UPDATE| TRAN_TYPE
+    DBUNLDGS -->|SELECT / FETCH cursor| AUTH_TABLES
+    PAUDBLOD -->|INSERT / COMMIT| AUTH_TABLES
+
+    %% ── IMS DL/I Access ─────────────────────────────────────────────
+    CBPAUP0C -->|DL/I via CBLTDLI| AUTH_IMS
+    COPAUA0C -->|DL/I GU/GN| AUTH_IMS
+    COPAUS0C -->|DL/I ISRT/REPL| AUTH_IMS
+    PAUDBUNL -->|DL/I sequential| AUTH_IMS
+
+    classDef db2prog fill:#c0392b,stroke:#922b21,color:#fff
+    classDef imsprog fill:#8e44ad,stroke:#6c3483,color:#fff
+    classDef db2     fill:#e74c3c,stroke:#cb4335,color:#fff
+    classDef ims     fill:#a569bd,stroke:#884ea0,color:#fff
