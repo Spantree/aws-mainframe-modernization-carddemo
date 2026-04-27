@@ -110,9 +110,7 @@ export class AccountViewController {
     // READ FILE('CXACAIX') — look up card number via cross-reference
     let cardNumber: string | undefined;
     try {
-      const xref = await this.cardXrefRepository.findOneBy({
-        accountId: Number(paddedId),
-      });
+      const xref = await this.cardXrefRepository.findOneBy({ accountId: paddedId });
       if (xref) {
         cardNumber = xref.cardNumber;
       }

@@ -23,8 +23,6 @@ import {
   Controller,
   Get,
   Query,
-  NotFoundException,
-  BadRequestException,
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -83,7 +81,7 @@ export class CardListController {
     @Query('page') pageParam = '1',
     @Query('activeOnly') activeOnly = 'false',
   ): Promise<CardListResponse> {
-    const page = Math.max(1, parseInt(pageParam, 10) || 1);
+    const page = Math.max(1, Number.parseInt(pageParam, 10) || 1);
     const skip = (page - 1) * PAGE_SIZE;
 
     let cards: CardRecord[];
@@ -93,7 +91,7 @@ export class CardListController {
 
       // Resolve card numbers via CARDXREF (alternate index equivalent)
       const xrefs = await this.cardXrefRepository.find({
-        where: { accountId: Number(paddedAccountId) },
+        where: { accountId: paddedAccountId },
       });
 
       if (xrefs.length === 0) {
@@ -135,7 +133,7 @@ export class CardListController {
     const hasNextPage = cards.length > PAGE_SIZE;
     const pageCards = cards.slice(0, PAGE_SIZE).map((c) => ({
       cardNumber: c.cardNumber,
-      accountId: String(c.accountId).padStart(11, '0'),
+      accountId: c.accountId.padStart(11, '0'),
       embossedName: c.embossedName,
       expirationDate: c.expirationDate,
       activeStatus: c.activeStatus,

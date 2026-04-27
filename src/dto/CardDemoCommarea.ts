@@ -68,8 +68,12 @@ export class CardDemoCommarea {
 
   // CDEMO-CARD-INFO
 
-  /** PIC 9(16) — Card number in context */
-  cardNumber: number = 0;
+  /**
+   * PIC 9(16) — Card number in context.
+   * Stored as string: 16 digits exceeds Number.MAX_SAFE_INTEGER (~9.007e15),
+   * so a `number` would silently corrupt real card numbers.
+   */
+  cardNumber: string = '';
 
   // CDEMO-MORE-INFO
 
