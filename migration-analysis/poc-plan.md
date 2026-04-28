@@ -1,7 +1,7 @@
 # Proof-of-Concept Plan — CardDemo Migration
 
 **Date:** 2026-02-28
-**Purpose:** Validate the full COBOL→Java→React translation pipeline before committing
+**Purpose:** Validate the full COBOL→TypeScript→React translation pipeline before committing
 to full migration scope.
 
 ---
@@ -10,7 +10,7 @@ to full migration scope.
 
 The PoC translates 2 programs — one batch and one CICS — to demonstrate:
 1. The translation toolchain works end-to-end
-2. The Java output is idiomatic and maintainable (not "COBOL in Java")
+2. The TypeScript output is idiomatic and maintainable (not "COBOL in TypeScript")
 3. A test harness confirms bit-for-bit fidelity with the original
 4. Team confidence is established before tackling harder programs
 
@@ -40,41 +40,49 @@ no financial logic, no assembler dependencies.
 ### What the PoC Demonstrates
 
 1. **VSAM → PostgreSQL data access:** Replace COBOL file declarations with a
-   Spring Data JPA `CustomerRepository.findAll()` query.
-2. **COBOL record → Java class:** Map `CUSTOMER-RECORD` (CVCUS01Y) to
-   `CustomerRecord.java` using the type mappings in `migration/data-model.md`.
-3. **Sequential processing → Spring Batch:** Wrap in a `ItemReader<CustomerRecord>` +
-   `ItemWriter<String>` Spring Batch step.
-4. **CEE3ABD abend handler → @ExceptionHandler:** Replace the IBM LE abend trap
-   with a Spring exception handler.
+   TypeORM `CustomerRepository.find()` query.
+2. **COBOL record → TypeORM entity:** Map `CUSTOMER-RECORD` (CVCUS01Y) to
+   `customer.entity.ts` using the type mappings in `migration/data-model.md`.
+3. **Sequential processing → BullMQ:** Wrap in a BullMQ processor that streams
+   records from the repository and writes them out.
+4. **CEE3ABD abend handler → NestJS exception filter:** Replace the IBM LE abend trap
+   with a NestJS `@Catch()` exception filter.
 
-### Expected Java Output
+### Expected TypeScript Output
 
-```java
-// CustomerRecord.java — from CVCUS01Y
-@Data @Builder
-public class CustomerRecord {
-    private int custId;
-    private String custFirstName;
-    private String custLastName;
-    // ... (see data-model.md for all fields)
+```typescript
+// customer.entity.ts — from CVCUS01Y
+@Entity('customer')
+export class Customer {
+  @PrimaryColumn({ type: 'integer' })
+  custId: number;
+
+  @Column({ type: 'varchar', length: 25 })
+  custFirstName: string;
+
+  @Column({ type: 'varchar', length: 25 })
+  custLastName: string;
+  // ... (see data-model.md for all fields)
 }
 
-// CustomerPrintJob.java — replaces CBCUS01C
-@Component
-public class CustomerPrintTasklet implements Tasklet {
-    @Autowired CustomerRepository repo;
+// customer-print.processor.ts — replaces CBCUS01C
+@Processor('customer-print')
+export class CustomerPrintProcessor extends WorkerHost {
+  constructor(
+    @InjectRepository(Customer) private readonly repo: Repository<Customer>,
+  ) {
+    super();
+  }
 
-    @Override
-    public RepeatStatus execute(StepContribution c, ChunkContext ctx) {
-        repo.findAll().forEach(customer ->
-            System.out.printf("CUSTOMER: %09d  %-25s %-25s%n",
-                customer.getCustId(),
-                customer.getCustFirstName(),
-                customer.getCustLastName())
-        );
-        return RepeatStatus.FINISHED;
+  async process(): Promise<void> {
+    const customers = await this.repo.find();
+    for (const c of customers) {
+      console.log(
+        `CUSTOMER: ${c.custId.toString().padStart(9, '0')}  ` +
+        `${c.custFirstName.padEnd(25)} ${c.custLastName.padEnd(25)}`,
+      );
     }
+  }
 }
 ```
 
@@ -82,18 +90,19 @@ public class CustomerPrintTasklet implements Tasklet {
 
 1. **GnuCOBOL reference run:** Compile CBCUS01C.cbl with GnuCOBOL, run against
    test CUSTFILE data, capture output to `cbcus01c-reference.txt`
-2. **Java test run:** Run CustomerPrintJob against same data loaded into PostgreSQL
-   test database (Testcontainers), capture output to `cbcus01c-java.txt`
-3. **Diff:** `diff cbcus01c-reference.txt cbcus01c-java.txt` must produce zero
+2. **TypeScript test run:** Run the customer-print processor against the same data
+   loaded into a PostgreSQL test database (Testcontainers), capture output to
+   `cbcus01c-ts.txt`
+3. **Diff:** `diff cbcus01c-reference.txt cbcus01c-ts.txt` must produce zero
    differences (accounting for whitespace normalization if needed)
 
 ### Acceptance Criteria
 
-- [ ] Java program produces identical output to COBOL for all 10 test customer records
-- [ ] Java program produces identical output for edge cases: customer with no middle name,
+- [ ] TypeScript program produces identical output to COBOL for all 10 test customer records
+- [ ] TypeScript program produces identical output for edge cases: customer with no middle name,
       customer with max-length name fields, customer with FICO score = 300 and 850
 - [ ] Unit test coverage ≥ 90%
-- [ ] Code reviewed by senior Java developer — idiomatic (no `goto`, no global state)
+- [ ] Code reviewed by senior TypeScript developer — idiomatic (no `goto`, no global state)
 
 ---
 
@@ -119,18 +128,19 @@ send. No financial mutation, no complex navigation, no GO TO statements.
 
 ### What the PoC Demonstrates
 
-1. **CICS COMMAREA → JWT/session:** COCOM01Y COMMAREA (user context, selected transaction
-   ID) → JWT claims passed as HTTP headers or URL path parameter.
-2. **EXEC CICS READ → JPA:** `EXEC CICS READ DATASET('TRANSACT') RIDFLD(tran-id)`
-   → `TransactionRepository.findById(tranId)` with NOTFND handling.
+1. **CICS COMMAREA → DTO + JWT session:** COCOM01Y COMMAREA (user context, selected
+   transaction ID) → request DTO with the transaction ID + JWT claims for the user
+   context, passed as HTTP headers or URL path parameter.
+2. **EXEC CICS READ → TypeORM:** `EXEC CICS READ DATASET('TRANSACT') RIDFLD(tran-id)`
+   → `transactionRepository.findOneBy({ tranId })` with NotFoundException handling.
 3. **BMS SEND MAP → React:** COTRN01 BMS mapset → `TransactionDetail.tsx` React
    component receiving a GraphQL query result.
 4. **EXEC CICS RETURN TRANSID → HTTP response:** CICS pseudo-conversational return
    → HTTP 200 response with JSON body.
 5. **EXEC CICS XCTL → React router navigation:** `XCTL PROGRAM('COTRN00C')`
    → React Router `navigate('/transactions')`.
-6. **HANDLE ABEND → @ControllerAdvice:** CICS abend handler → Spring
-   `@ExceptionHandler` returning HTTP 500 with error body.
+6. **HANDLE ABEND → exception filter:** CICS abend handler → NestJS
+   `@Catch()` exception filter returning HTTP 500 with error body.
 
 ### Target Architecture
 
@@ -138,10 +148,10 @@ send. No financial mutation, no complex navigation, no GO TO statements.
 Browser (React)
     │  GET /api/transactions/{tranId}
     ▼
-Spring Boot Controller
+NestJS Controller
     │  TransactionService.getTransaction(tranId)
     ▼
-JPA Repository
+TypeORM Repository
     │  SELECT * FROM tran_record WHERE tran_id = ?
     ▼
 PostgreSQL (tran_record table)
@@ -152,20 +162,24 @@ React `TransactionDetail` component displays the fields from COTRN1A BMS mapset:
 - Amount, merchant name, merchant city
 - Card number (masked: first 4 + last 4), origination timestamp
 
-### Expected Java/React Output
+### Expected TypeScript / React Output
 
-```java
-// TransactionController.java
-@RestController @RequestMapping("/api/transactions")
-public class TransactionController {
-    @GetMapping("/{tranId}")
-    public ResponseEntity<TransactionRecord> getTransaction(
-            @PathVariable String tranId,
-            @AuthenticationPrincipal UserDetails user) {
-        return service.findById(tranId)
-            .map(ResponseEntity::ok)
-            .orElse(ResponseEntity.notFound().build());
-    }
+```typescript
+// transaction.controller.ts
+@Controller('api/transactions')
+@UseGuards(JwtAuthGuard)
+export class TransactionController {
+  constructor(private readonly service: TransactionService) {}
+
+  @Get(':tranId')
+  async getTransaction(
+    @Param('tranId') tranId: string,
+    @CurrentUser() user: AuthUser,
+  ): Promise<TransactionDto> {
+    const tx = await this.service.findById(tranId);
+    if (!tx) throw new NotFoundException();
+    return tx;
+  }
 }
 ```
 
@@ -192,7 +206,7 @@ const TransactionDetail: React.FC<{tranId: string}> = ({tranId}) => {
 
 1. **COBOL reference output:** Using GnuCOBOL + CICS simulator (or terminal
    emulator capture), record the screen output for transaction ID `0001001234567890`
-2. **Java API test:** Call `GET /api/transactions/0001001234567890` against
+2. **NestJS API test:** Call `GET /api/transactions/0001001234567890` against
    Testcontainers PostgreSQL with seeded test data; assert JSON fields match
 3. **React visual test:** Cypress component test renders `TransactionDetail` and
    asserts field values match expected data
@@ -205,7 +219,7 @@ const TransactionDetail: React.FC<{tranId: string}> = ({tranId}) => {
 - [ ] React component matches COBOL screen layout (field labels, order)
 - [ ] Authentication required — unauthenticated request returns HTTP 401
 - [ ] Unit test coverage ≥ 90% for service layer
-- [ ] Code reviewed by senior Java developer
+- [ ] Code reviewed by senior TypeScript developer
 
 ---
 
@@ -214,8 +228,8 @@ const TransactionDetail: React.FC<{tranId: string}> = ({tranId}) => {
 The PoC is complete when:
 
 1. Both programs are translated, tested, and reviewed
-2. Dual test harness (COBOL + Java) confirms output fidelity
-3. Team demonstrates the full stack: COBOL source → Java service → React UI
+2. Dual test harness (COBOL + TypeScript) confirms output fidelity
+3. Team demonstrates the full stack: COBOL source → NestJS service → React UI
 4. Lessons learned documented for application to Wave 1 programs
 5. Translation playbook updated with any patterns discovered
 

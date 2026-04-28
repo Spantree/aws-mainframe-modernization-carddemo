@@ -39,7 +39,7 @@ KSDS files as its primary data store with CICS for online transaction processing
   of the codebase is tractable with AI-assisted translation.
 * **2 migration blockers:** CBSTM03A (ALTER + POINTER to OS control blocks) and COACTUPC
   (structural complexity) require manual refactoring before translation.
-* **2 assembler stubs** (COBDATFT, MVSWAIT) require Java reimplementation before Wave 1.
+* **2 assembler stubs** (COBDATFT, MVSWAIT) require TypeScript reimplementation before Wave 1.
 * **Scope reduction is 3%** (~620 dead LOC of 20,650 total). CardDemo is a clean 2022–2023
   demo application, not a decades-old system with accumulated dead code.
 * **Three critical security findings** requiring immediate action independent of migration:
@@ -83,12 +83,12 @@ KSDS files as its primary data store with CICS for online transaction processing
 | CICS                     | Present (core)       | All 17 online programs; COMMAREA pattern → stateless REST    |
 | VSAM KSDS                | Present (8 files)    | Primary data store → PostgreSQL tables                       |
 | BMS (3270)               | Present (17 mapsets) | Terminal UI → React components                               |
-| IBM Language Environment | Present              | CEE3ABD, CEEDAYS → JVM exception handling, java.time         |
+| IBM Language Environment | Present              | CEE3ABD, CEEDAYS → NestJS exception filters, date-fns / Temporal |
 | IMS DL/I                 | Variant only         | CBLTDLI calls → requires IMS-to-PostgreSQL migration first   |
-| DB2 Embedded SQL         | Variant only         | SELECT/INSERT/UPDATE/DELETE → Spring Data JPA                |
-| IBM MQ                   | Variant only         | MQ PUT → Spring Integration or Amazon SQS                    |
-| RACF                     | **Absent**           | App-level auth via USRSEC VSAM → Spring Security + JWT       |
-| GDG                      | Present              | Generation Data Groups → managed file naming in Spring Batch |
+| DB2 Embedded SQL         | Variant only         | SELECT/INSERT/UPDATE/DELETE → TypeORM repositories           |
+| IBM MQ                   | Variant only         | MQ PUT → NestJS microservice client (Kafka/RabbitMQ) or Amazon SQS |
+| RACF                     | **Absent**           | App-level auth via USRSEC VSAM → NestJS Guards + Passport JWT |
+| GDG                      | Present              | Generation Data Groups → managed file naming in BullMQ flows |
 
 ### Complexity Distribution
 
@@ -165,7 +165,7 @@ COMBTRAN (SORT) → reads SYSTRAN(0) + TRANSACT.BKUP(0), writes TRANSACT.COMBINE
 TRANREPT (CBTRN03C) → reads TRANSACT.COMBINED, writes TRANREPT(+1)
 ```
 
-Any replacement scheduler (Spring Batch, AWS Step Functions, or equivalent) must
+Any replacement scheduler (BullMQ Flows, AWS Step Functions, or equivalent) must
 enforce this execution order.
 
 ### CICS Transaction Model
@@ -190,17 +190,17 @@ more REST endpoints.
 | Risk                                                  | Programs Affected                                                         | Severity     | Mitigation                                                                           |
 |-------------------------------------------------------|---------------------------------------------------------------------------|--------------|--------------------------------------------------------------------------------------|
 | ALTER statements — dynamically reassign GO TO targets | CBSTM03A                                                                  | **CRITICAL** | Manual rewrite required; static analysis cannot determine all runtime paths          |
-| POINTER to MVS control blocks (PSA/TCB/TIOT)          | CBSTM03A                                                                  | **CRITICAL** | Identify what data is accessed; replace with Java equivalents or eliminate           |
+| POINTER to MVS control blocks (PSA/TCB/TIOT)          | CBSTM03A                                                                  | **CRITICAL** | Identify what data is accessed; replace with TypeScript equivalents or eliminate     |
 | >10 GO TO statements                                  | COACTUPC (51), COCRDUPC (21), COCRDLIC (16), CBSTM03A (15), CBSTM03B (13) | HIGH         | Manual control-flow tracing; structured refactoring before translation               |
-| Assembler programs (no COBOL equivalent)              | COBDATFT, MVSWAIT                                                         | HIGH         | Reimplement as Java utility methods in Wave 0                                        |
+| Assembler programs (no COBOL equivalent)              | COBDATFT, MVSWAIT                                                         | HIGH         | Reimplement as TypeScript utility modules in Wave 0                                  |
 | COCRDSEC CSD orphan entry (CDV1) — no source found    | CSD only                                                                  | HIGH         | Live CICS defect (PGMIDERR abend on entry); remove from CSD before migration         |
-| CICS START async pattern                              | CORPT00C, CODATE01                                                        | HIGH         | Requires Spring Batch + JMS/Kafka job trigger design before translation              |
+| CICS START async pattern                              | CORPT00C, CODATE01                                                        | HIGH         | Requires BullMQ + Kafka/RabbitMQ job trigger design before translation               |
 | VSAM alternate index (CXACAIX)                        | COBIL00C                                                                  | MEDIUM       | Model as PostgreSQL secondary index; test card-number lookup path                    |
-| 43 REDEFINES                                          | COACTUPC                                                                  | HIGH         | Requires sealed interface / discriminated union design in Java                       |
+| 43 REDEFINES                                          | COACTUPC                                                                  | HIGH         | Requires discriminated-union / interface hierarchy design in TypeScript              |
 | COPY REPLACING ×39 (CSSETATY)                         | COACTUPC                                                                  | HIGH         | Generates thousands of compile-time source lines; refactor to React validation state |
 | IMS DL/I dependencies                                 | CL-16 (5 programs)                                                        | HIGH         | IMS database must be migrated to PostgreSQL before authorization programs            |
 | Dynamic XCTL from table data                          | COMEN01C, COADM01C                                                        | LOW          | Fully resolved from COMEN02Y / COADM02Y tables; all targets identified               |
-| IBM LE runtime calls (CEE3ABD, CEEDAYS)               | 12 batch programs, CSUTLDTC                                               | MEDIUM       | Replace with JVM exception handling and java.time APIs                               |
+| IBM LE runtime calls (CEE3ABD, CEEDAYS)               | 12 batch programs, CSUTLDTC                                               | MEDIUM       | Replace with NestJS exception filters and date-fns / Temporal APIs                   |
 
 ### Data Risks
 
@@ -208,12 +208,12 @@ more REST endpoints.
 |--------------------------------------------|--------------|---------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------|
 | EBCDIC → UTF-8 conversion                  | HIGH         | All PIC X fields stored in EBCDIC (CP037). Sort order differs from UTF-8 — EBCDIC lowercase sorts before uppercase. | Validate all ORDER BY and comparison logic after conversion                         |
 | Packed decimal (COMP-3) conversion         | HIGH         | COMP-3 fields store 2 digits/byte + sign nibble. Wrong conversion → silent data corruption.                         | Use validated COMP-3 decoder; verify against CVEXPORT sample data                   |
-| Plaintext passwords in USRSEC VSAM         | **CRITICAL** | SEC-USR-PWD PIC X(08) stores passwords in plaintext                                                                 | Hash with BCrypt (cost ≥12) or Argon2id during data migration; force password reset |
+| Plaintext passwords in USRSEC VSAM         | **CRITICAL** | SEC-USR-PWD PIC X(08) stores passwords in plaintext                                                                 | Hash with bcrypt (cost ≥12) or Argon2id during data migration; force password reset |
 | CVV stored in CARDFILE VSAM                | **CRITICAL** | CARD-CVV-CD PIC 9(03) persisted — violates PCI DSS requirement 3.3                                                  | Do NOT migrate CVV column to PostgreSQL; delete from migration export               |
 | SSN as plain integer                       | HIGH         | CUST-SSN PIC 9(09) — stored as integer; leading zeros lost; no encryption                                           | Encrypt at column level (pgcrypto) or tokenize; SSN leading zero restoration needed |
 | PII in cleartext                           | MEDIUM       | Customer name, DOB, govt ID, address, phone in plain VSAM                                                           | Apply PostgreSQL row security policies or column encryption for PII                 |
-| Date format ambiguity                      | LOW          | All date fields use PIC X(10) with YYYY-MM-DD format — confirmed; no Y2K ambiguity                                  | Use DateTimeFormatter.ISO\_LOCAL\_DATE                                              |
-| COMP range under TRUNC(STD)                | MEDIUM       | PIC 9(9) COMP = max 999,999,999, not Integer.MAX\_VALUE                                                             | Verify compile JCL for TRUNC option; add range validation in Java setters           |
+| Date format ambiguity                      | LOW          | All date fields use PIC X(10) with YYYY-MM-DD format — confirmed; no Y2K ambiguity                                  | Use date-fns ISO format helpers / `Temporal.PlainDate`                              |
+| COMP range under TRUNC(STD)                | MEDIUM       | PIC 9(9) COMP = max 999,999,999, not `Number.MAX_SAFE_INTEGER`                                                      | Verify compile JCL for TRUNC option; add range validation via class-validator decorators |
 | Duplicate copybook (CUSTREC vs CVCUS01Y)   | LOW          | CUSTREC has same layout as CVCUS01Y with minor field name difference                                                | Use CVCUS01Y as canonical; discard CUSTREC                                          |
 | CSLKPCDY 1,318-line hardcoded lookup table | MEDIUM       | US state/ZIP/phone lookup hardcoded in COBOL                                                                        | Extract to PostgreSQL reference table; load at startup                              |
 
@@ -221,12 +221,12 @@ more REST endpoints.
 
 | Risk                                                | Severity | Details                                                                                     | Mitigation                                                                                 |
 |-----------------------------------------------------|----------|---------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------|
-| CORPT00C → JOBS TD Queue (internal reader)          | HIGH     | Only CICS-to-batch bridge; no direct Java equivalent                                        | Replace with Spring Batch JobLauncher + async REST endpoint or Kafka event                 |
+| CORPT00C → JOBS TD Queue (internal reader)          | HIGH     | Only CICS-to-batch bridge; no direct TypeScript equivalent                                  | Replace with BullMQ producer + async REST endpoint, or Kafka event                         |
 | GDG sequencing (POSTTRAN→INTCALC→COMBTRAN→TRANREPT) | HIGH     | Implicit ordering via GDG generation numbers; violated execution causes data corruption     | Enforce ordering in replacement scheduler with explicit job dependencies                   |
 | IBM MQ event contracts (COACCT01)                   | HIGH     | MQ message schema published by COACCT01 may have downstream consumers outside this codebase | Document and preserve MQ message format; identify all queue consumers before migration     |
 | COCRDSEC orphan (CDV1 transaction)                  | HIGH     | Live CICS CSD entry with no source — production PGMIDERR risk                               | Investigate and remove CDV1 from CSD immediately                                           |
 | External FTP transfer (FTPJCL)                      | MEDIUM   | FTP job with hardcoded credentials; unclear downstream consumers                            | Identify FTP target and purpose; replace with secure S3 or SFTP with credential management |
-| CICS START async (CODATE01)                         | MEDIUM   | START + RETRIEVE asynchronous date service; no Java equivalent                              | Replace with Spring @Async + JMS/Kafka consumer; or eliminate if unused                    |
+| CICS START async (CODATE01)                         | MEDIUM   | START + RETRIEVE asynchronous date service; no direct TypeScript equivalent                 | Replace with a BullMQ job + Kafka/RabbitMQ consumer; or eliminate if unused                |
 | IMS DBD/PSB schemas not in repository               | HIGH     | IMS authorization programs (CL-16) require DBD/PSB definitions not present in `app/`        | Obtain IMS schema from operations team before attempting IMS variant migration             |
 
 ### Organizational Risks
@@ -235,9 +235,9 @@ more REST endpoints.
 |------------------------------------------|----------|------------------------------------------------------------------------------------------------------------------------------------|
 | Tribal knowledge of COBOL business rules | HIGH     | COACTUPC (4,236 lines, 0 comments) contains undocumented validation logic — requires COBOL SME review before translation           |
 | No test harnesses in source tree         | HIGH     | No unit tests, no regression data found; migration quality cannot be measured without establishing test baseline first             |
-| Mainframe access for parallel run        | MEDIUM   | Parallel run validation requires simultaneous access to mainframe and Java environments; coordinate access windows with operations |
-| Team COBOL literacy                      | MEDIUM   | Java developers translating COBOL must understand packed decimal, CICS lifecycle, and VSAM browse patterns — training required     |
-| Java/Spring skill gaps                   | MEDIUM   | See Team Readiness section                                                                                                         |
+| Mainframe access for parallel run        | MEDIUM   | Parallel run validation requires simultaneous access to mainframe and TypeScript/NestJS environments; coordinate access windows with operations |
+| Team COBOL literacy                      | MEDIUM   | TypeScript developers translating COBOL must understand packed decimal, CICS lifecycle, and VSAM browse patterns — training required |
+| TypeScript/NestJS skill gaps             | MEDIUM   | See Team Readiness section                                                                                                         |
 | Migration scope creep (variant modules)  | MEDIUM   | IMS/DB2/MQ variants add 9,525 LOC of optional scope; agree on which variants are in scope before committing                        |
 
 ***
@@ -253,29 +253,29 @@ waves. This builds team confidence and infrastructure before tackling complex pr
 
 ### Phase 0: Pre-Migration — Blockers & Infrastructure
 
-**Goal:** Eliminate assembler dependencies; establish PostgreSQL schema and Java
-project structure. No COBOL programs migrated in this phase.
+**Goal:** Eliminate assembler dependencies; establish PostgreSQL schema and the
+TypeScript/NestJS project structure. No COBOL programs migrated in this phase.
 
-| Item                     | Action                                          | Output                      |
-|--------------------------|-------------------------------------------------|-----------------------------|
-| COBDATFT (assembler)     | Reimplement as Java `DateUtils.formatDate()`    | Unblocks CBACT01C           |
-| MVSWAIT (assembler)      | Replace with `Thread.sleep(centiseconds * 10L)` | Unblocks COBSWAIT           |
-| CSUTLDTC (subprogram)    | Migrate date validation library                 | Unblocks CORPT00C, COTRN02C |
-| PostgreSQL schema        | Apply `migration/schema.sql`                    | Database foundation         |
-| Java project scaffolding | Spring Boot 3 project, Gradle/Maven setup       | Build pipeline              |
-| Auth framework           | Spring Security + BCrypt + JWT                  | Unblocks COSGN00C           |
-| Reference data migration | Load CSLKPCDY data → `reference_data` table     | Unblocks COACTUPC           |
+| Item                       | Action                                                    | Output                      |
+|----------------------------|-----------------------------------------------------------|-----------------------------|
+| COBDATFT (assembler)       | Reimplement as TypeScript `dateUtils.formatDate()`        | Unblocks CBACT01C           |
+| MVSWAIT (assembler)        | Replace with `await Bun.sleep(centiseconds * 10)`         | Unblocks COBSWAIT           |
+| CSUTLDTC (subprogram)      | Migrate date validation library                           | Unblocks CORPT00C, COTRN02C |
+| PostgreSQL schema          | Apply `migration/schema.sql`                              | Database foundation         |
+| NestJS project scaffolding | NestJS 10 monorepo on Bun + TypeScript, npm workspaces    | Build pipeline              |
+| Auth framework             | NestJS Guards + Passport JWT + bcrypt                     | Unblocks COSGN00C           |
+| Reference data migration   | Load CSLKPCDY data → `reference_data` table               | Unblocks COACTUPC           |
 
 ### Phase 1: Quick Wins — Batch Leaf Nodes
 
-**Goal:** Validate COBOL-to-Java translation pipeline on simple, isolated programs.
+**Goal:** Validate COBOL-to-TypeScript translation pipeline on simple, isolated programs.
 Each program has no incoming dependencies and clean batch structure.
 
-| Wave | Programs                     | Composite | Rationale                                            |
-|------|------------------------------|-----------|------------------------------------------------------|
-| 1A   | CBACT02C, CBACT03C, CBCUS01C | 1.40      | Near-identical 178-line readers; validate VSAM→JPA   |
-| 1B   | COBTUPDT, PAUDBLOD, DBUNLDGS | 1.35–1.55 | Simple DB2 SQL patterns; validate Spring Batch + JPA |
-| 1C   | COBSWAIT                     | 1.60      | Trivial (Thread.sleep) after Wave 0                  |
+| Wave | Programs                     | Composite | Rationale                                              |
+|------|------------------------------|-----------|--------------------------------------------------------|
+| 1A   | CBACT02C, CBACT03C, CBCUS01C | 1.40      | Near-identical 178-line readers; validate VSAM→TypeORM |
+| 1B   | COBTUPDT, PAUDBLOD, DBUNLDGS | 1.35–1.55 | Simple DB2 SQL patterns; validate BullMQ + TypeORM     |
+| 1C   | COBSWAIT                     | 1.60      | Trivial (`Bun.sleep`) after Wave 0                     |
 
 **Exit criterion:** 3 programs translated, tested, producing identical output to mainframe.
 
@@ -298,8 +298,8 @@ before cutover.
 | CBACT04C | 1.85      | Interest calculation — exact decimal precision | YES — minimum 1 billing cycle |
 | CBTRN02C | 2.00      | Transaction posting — account balance mutation | YES — minimum 1 billing cycle |
 
-**Exit criterion:** Java and mainframe produce bit-for-bit identical account balances
-across 30 days of production data before Phase 3 programs go live.
+**Exit criterion:** the NestJS service and mainframe produce bit-for-bit identical
+account balances across 30 days of production data before Phase 3 programs go live.
 
 ### Phase 4: Simple CICS Screens
 
@@ -313,11 +313,11 @@ across 30 days of production data before Phase 3 programs go live.
 
 ### Phase 5: Authentication & Medium CICS
 
-| Programs | Composite | Key Concern                                                                      |
-|----------|-----------|----------------------------------------------------------------------------------|
-| COSGN00C | 2.10      | **Security boundary** — plaintext VSAM passwords; must integrate Spring Security |
-| COACTVWC | 2.70      | Account view; VSAM read                                                          |
-| COTRN00C | 2.40      | Bidirectional VSAM browse → PostgreSQL pagination                                |
+| Programs | Composite | Key Concern                                                                       |
+|----------|-----------|-----------------------------------------------------------------------------------|
+| COSGN00C | 2.10      | **Security boundary** — plaintext VSAM passwords; must integrate NestJS auth (Guards + Passport JWT) |
+| COACTVWC | 2.70      | Account view; VSAM read                                                           |
+| COTRN00C | 2.40      | Bidirectional VSAM browse → PostgreSQL pagination                                 |
 
 ### Phase 6: Variant Modules
 
@@ -329,20 +329,20 @@ across 30 days of production data before Phase 3 programs go live.
 
 ### Phase 7: Financial CICS & Batch Bridge
 
-| Programs | Composite | Key Concern                                                        |
-|----------|-----------|--------------------------------------------------------------------|
-| COCRDSLC | 2.80      | Card search + pagination                                           |
-| COBIL00C | 2.90      | **Bill payment** — VSAM alternate index + financial @Transactional |
-| COTRN02C | 2.90      | **Transaction creation** — financial mutation                      |
-| CORPT00C | 3.00      | **Architecture boundary** — CICS START → async job trigger         |
+| Programs | Composite | Key Concern                                                                                       |
+|----------|-----------|---------------------------------------------------------------------------------------------------|
+| COCRDSLC | 2.80      | Card search + pagination                                                                          |
+| COBIL00C | 2.90      | **Bill payment** — VSAM alternate index + financial transaction (TypeORM `dataSource.transaction`) |
+| COTRN02C | 2.90      | **Transaction creation** — financial mutation                                                     |
+| CORPT00C | 3.00      | **Architecture boundary** — CICS START → async job trigger                                        |
 
 ### Phase 8: Hard Programs — Manual Rewrites
 
-| Programs            | Composite   | Approach                                                                      |
-|---------------------|-------------|-------------------------------------------------------------------------------|
-| CBSTM03B + CBSTM03A | 2.30 + 3.00 | **Manual rewrite** — ALTER + POINTER; Thymeleaf for HTML output               |
-| COCRDLIC + COCRDUPC | 3.30 + 3.40 | AI-assisted + manual refactoring; migrate as pair                             |
-| COACTUPC            | 3.85        | **Manual rewrite** — 51 GO TO, 43 REDEFINES; decompose into 4 Java components |
+| Programs            | Composite   | Approach                                                                              |
+|---------------------|-------------|---------------------------------------------------------------------------------------|
+| CBSTM03B + CBSTM03A | 2.30 + 3.00 | **Manual rewrite** — ALTER + POINTER; Handlebars/EJS templates for HTML output        |
+| COCRDLIC + COCRDUPC | 3.30 + 3.40 | AI-assisted + manual refactoring; migrate as pair                                     |
+| COACTUPC            | 3.85        | **Manual rewrite** — 51 GO TO, 43 REDEFINES; decompose into 4 NestJS modules/services |
 
 ***
 
@@ -360,10 +360,10 @@ across 30 days of production data before Phase 3 programs go live.
 | Living programs — batch (core)       | 11                                         | Each needs: translation + unit tests + integration test + parallel-run harness |
 | Living programs — CICS online (core) | 17                                         | Each needs: translation + service layer + GraphQL/REST endpoint + React screen |
 | Living programs — called subprograms | 2                                          | Library code; translate once, used by multiple programs                        |
-| Assembler programs                   | 2                                          | Wave 0 reimplementation; trivial in Java                                       |
-| Copybooks (shared entity structures) | 28                                         | Each needs: Java class + PostgreSQL DDL                                        |
+| Assembler programs                   | 2                                          | Wave 0 reimplementation; trivial in TypeScript                                 |
+| Copybooks (shared entity structures) | 28                                         | Each needs: TypeORM entity / TypeScript interface + PostgreSQL DDL             |
 | Hub copybooks (>10 consumers)        | 4 (COCOM01Y, CVACT03Y, COTTL01Y, CSDAT01Y) | Translate first; every consumer depends on these being correct                 |
-| JCL jobs → Spring Batch / @Scheduled | 16 (batch processing jobs)                 | Each needs: Spring Batch job definition + step implementation                  |
+| JCL jobs → BullMQ / NestJS Schedule  | 16 (batch processing jobs)                 | Each needs: BullMQ processor / scheduled task definition + step implementation |
 | BMS mapsets → React components       | 17                                         | Each needs: React component + GraphQL queries/mutations                        |
 | VSAM files → PostgreSQL tables       | 8                                          | Schema migration + VSAM data export + PostgreSQL load                          |
 | Variant programs (optional scope)    | 13                                         | Include in scope only if variants are required in target                       |
@@ -384,7 +384,7 @@ across 30 days of production data before Phase 3 programs go live.
 **Sizing note for COACTUPC:** This single program (3.85 composite, 4,236 lines)
 represents the largest single migration item. It should be treated as a **project
 within the project** — allocate independently and staff with your most experienced
-Java developer plus a COBOL SME.
+TypeScript/NestJS developer plus a COBOL SME.
 
 ***
 
@@ -396,8 +396,8 @@ Rationale:
 
 * The codebase is well-structured (0 programs ≥4.0; clean batch/online separation)
 * Business logic is legible COBOL without excessive spaghetti (except COACTUPC, CBSTM03A)
-* Target is idiomatic Java the team will maintain long-term
-* Automated translation tools (Blu Age) produce "COBOL in Java" that teams cannot maintain
+* Target is idiomatic TypeScript/NestJS the team will maintain long-term
+* Automated translation tools (e.g. AWS Transform / Blu Age) produce "COBOL in Java" that teams cannot maintain — the same risk applies to any naive line-by-line port to TypeScript
 
 **Do NOT recommend:**
 
@@ -417,22 +417,23 @@ Rationale:
 ## Strangler Fig Strategy
 
 **A big-bang cutover is not recommended.** The strangler fig pattern allows the
-mainframe and Java systems to coexist during migration, with traffic shifted incrementally.
+mainframe and TypeScript/NestJS systems to coexist during migration, with traffic
+shifted incrementally.
 
 ### Architecture Overview
 
 ```
                     ┌─────────────────────────┐
                     │      API Gateway         │
-                    │  (Kong / Spring Cloud)   │
+                    │  (Kong / AWS API GW)     │
                     └────────┬────────────────┘
                              │
                Route per transaction
                     ┌────────┴────────┐
                     │                 │
            ┌────────▼──────┐  ┌──────▼────────┐
-           │   Mainframe    │  │  Java/Spring  │
-           │  CICS + VSAM   │  │  Boot + PG    │
+           │   Mainframe    │  │ NestJS + PG   │
+           │  CICS + VSAM   │  │  (TypeScript) │
            │  (existing)    │  │  (migrated)   │
            └───────────────┘  └───────────────┘
                     │                 │
@@ -456,21 +457,22 @@ mainframe and Java systems to coexist during migration, with traffic shifted inc
    * **PostgreSQL → Mainframe:** Batch push or queue-based reverse sync
 
 3. **Per-transaction routing with feature flags** — As each CICS transaction is
-   translated and validated, flip its gateway route from mainframe to Java service.
-   Use LaunchDarkly or Spring Feature Toggles for instant rollback capability.
+   translated and validated, flip its gateway route from mainframe to the NestJS
+   service. Use LaunchDarkly or an open-source flag service (e.g. Unleash,
+   OpenFeature) for instant rollback capability.
 
    Example routing table:
    | Transaction           | Current Route | Post-Migration Route           |
    |-----------------------|---------------|--------------------------------|
-   | CC00 (signon)         | Mainframe     | Java                           |
-   | CM00 (main menu)      | Mainframe     | Java                           |
+   | CC00 (signon)         | Mainframe     | NestJS                         |
+   | CM00 (main menu)      | Mainframe     | NestJS                         |
    | CB00 (bill payment)   | Mainframe     | Mainframe (pending shadow run) |
    | CAUP (account update) | Mainframe     | Mainframe (Wave 8)             |
 
 4. **Parallel run validation** — Run identical transactions against both systems.
    Compare results. Flag any discrepancy before expanding rollout.
 
-5. **Cutover** — When all transactions route to Java and parallel run shows 0
+5. **Cutover** — When all transactions route to NestJS and parallel run shows 0
    discrepancies across 30 days, decommission mainframe routing.
 
 ### Data Sync Strategy
@@ -493,22 +495,22 @@ During migration, VSAM and PostgreSQL must stay in sync:
 
 * Generated alongside each translated program
 * Test business logic with known inputs → expected outputs
-* Use injected `Clock` for deterministic date/time behavior
+* Use an injected clock provider for deterministic date/time behavior
 * Boundary value tests derived from PIC clause ranges:
   * `PIC 9(11)` → test 0, 1, 99999999999 (max)
   * `PIC S9(10)V99` → test 0.00, max positive, max negative
-* No database or CICS dependencies; pure Java logic
+* No database or CICS dependencies; pure TypeScript logic
 
 **Level 2: Integration Tests (per batch pipeline / transaction flow)**
 
 * Use Testcontainers (PostgreSQL + Redis in Docker) for isolated environments
-* Batch pipeline tests: seed data → run Spring Batch job → verify output tables
+* Batch pipeline tests: seed data → run BullMQ job → verify output tables
 * CICS flow tests: HTTP requests to GraphQL/REST API → verify state changes in DB
 * Cover the 4 GDG-ordered pipeline steps as a single end-to-end test
 
 **Level 3: Parallel Run Tests (system level)**
 
-* Same transaction executed against mainframe and Java simultaneously
+* Same transaction executed against mainframe and NestJS service simultaneously
 * Output comparison: account balances, transaction records, generated statements
 * Statistical threshold: 10,000 transactions with zero discrepancies required before
   cutover of financial programs (CBTRN02C, CBACT04C, COBIL00C, COTRN02C)
@@ -532,7 +534,7 @@ During migration, VSAM and PostgreSQL must stay in sync:
 Programs CBTRN02C, CBACT04C, COBIL00C, and COTRN02C require **shadow run testing**
 before cutover. Shadow run protocol:
 
-1. Run both mainframe and Java against identical input data
+1. Run both mainframe and NestJS service against identical input data
 2. Compare: account balances, transaction counts, reject file contents, generated statements
 3. Run for minimum one complete billing cycle (30 days)
 4. Zero discrepancies required for cutover authorization
@@ -559,9 +561,9 @@ timeline:
 
 * **File:** `app/cpy/CSUSR01Y.cpy` field `SEC-USR-PWD PIC X(08)`
 * **Issue:** User passwords stored as plaintext 8-character strings in USRSEC VSAM
-* **Action:** During data migration, hash all passwords with BCrypt (cost ≥12) or
+* **Action:** During data migration, hash all passwords with bcrypt (cost ≥12) or
   Argon2id before loading to PostgreSQL `sec_user_data` table. The 8-char COBOL field
-  expands to `VARCHAR(72)` for BCrypt hash storage. Consider forcing password resets
+  expands to `VARCHAR(72)` for bcrypt hash storage. Consider forcing password resets
   for all users post-migration.
 
 #### FINDING 3: CVV Persistence — SEVERITY: CRITICAL (PCI DSS Requirement 3.3)
@@ -597,12 +599,12 @@ AWS Bedrock). Relevant data policies:
 The CardDemo migration constitutes a **significant system change** under PCI DSS.
 Compliance obligations for the migration:
 
-1. Translated Java must maintain equivalent or stronger data protection controls
+1. Translated TypeScript/NestJS code must maintain equivalent or stronger data protection controls
 2. Add encryption at rest for cardholder data fields (`pgcrypto` or application-level AES-256)
 3. Add audit logging for all access to PAN, CVV, SSN, and password fields
 4. Mask PAN in application logs (first 6 / last 4 digits only)
 5. The migration itself may require a QSA (Qualified Security Assessor) review
-6. Conduct penetration testing on the new Java system before cutover
+6. Conduct penetration testing on the new NestJS system before cutover
 
 ### Translation Audit Trail
 
@@ -613,7 +615,7 @@ program with the following structure:
 {
   "sourceProgram": "COACTUPC.cbl",
   "sourceHash": "sha256:<hash>",
-  "targetFiles": ["AccountUpdateService.java", "AccountUpdateServiceTest.java"],
+  "targetFiles": ["account-update.service.ts", "account-update.service.spec.ts"],
   "translationTimestamp": "2026-03-xx",
   "modelUsed": "claude-sonnet-4-6",
   "humanReviewer": null,
@@ -635,28 +637,30 @@ See `migration/poc-plan.md` for the full PoC specification.
 * **CICS PoC:** COTRN01C (2.00 composite, 330 LOC) — simple transaction detail view;
   representative CICS READ + BMS SEND MAP pattern
 
-The PoC validates the full technical stack before committing to full migration.
+The PoC validates the full technical stack (COBOL → TypeScript/NestJS → React) before
+committing to full migration.
 
 ***
 
 ## Team Readiness
 
-Migrating from COBOL to Java replaces one skill gap with another. The following matrix
-identifies gaps that must be addressed:
+Migrating from COBOL to TypeScript/NestJS replaces one skill gap with another. The following
+matrix identifies gaps that must be addressed:
 
-| Skill                                                 | Required For                        | Gap Risk                            | Recommendation                                           |
-|-------------------------------------------------------|-------------------------------------|-------------------------------------|----------------------------------------------------------|
-| Java 21 (records, sealed interfaces, virtual threads) | All programs                        | HIGH if team is Java 8/11           | Upgrade training; sealed interfaces needed for REDEFINES |
-| Spring Boot 3 + Spring Batch                          | All batch programs                  | HIGH                                | Dedicated Spring Batch training or consulting support    |
-| Spring Security + JWT                                 | Authentication (COSGN00C)           | MEDIUM                              | Follow Spring Security reference documentation           |
-| PostgreSQL administration                             | Schema migration, tuning            | MEDIUM                              | DBA training or managed service (AWS RDS)                |
-| GraphQL (Spring for GraphQL)                          | CICS COMMAREA mapping               | MEDIUM                              | Consider REST if GraphQL adoption risk is high           |
-| React 18 + TypeScript                                 | BMS screen replacement (17 screens) | HIGH if no frontend team            | Outsource UI or hire frontend developer                  |
-| Docker / Testcontainers                               | Integration test infrastructure     | MEDIUM                              | DevOps onboarding as part of Wave 0                      |
-| COBOL reading literacy                                | AI-assisted translation review      | HIGH — all Java reviewers need this | 2-day COBOL reading workshop before translation begins   |
+| Skill                                                          | Required For                        | Gap Risk                                  | Recommendation                                                  |
+|----------------------------------------------------------------|-------------------------------------|-------------------------------------------|-----------------------------------------------------------------|
+| TypeScript 5 (strict mode, generics, discriminated unions)     | All programs                        | HIGH if team is plain JS                  | Upgrade training; discriminated unions needed for REDEFINES     |
+| NestJS 10 + BullMQ                                             | All batch and online programs       | HIGH                                      | Dedicated NestJS training or consulting support                 |
+| NestJS Guards + Passport JWT                                   | Authentication (COSGN00C)           | MEDIUM                                    | Follow NestJS authentication reference documentation            |
+| PostgreSQL administration                                      | Schema migration, tuning            | MEDIUM                                    | DBA training or managed service (AWS RDS)                       |
+| GraphQL (`@nestjs/graphql`)                                    | CICS COMMAREA mapping               | MEDIUM                                    | Consider REST if GraphQL adoption risk is high                  |
+| React 18 + TypeScript                                          | BMS screen replacement (17 screens) | HIGH if no frontend team                  | Outsource UI or hire frontend developer                         |
+| Docker / Testcontainers                                        | Integration test infrastructure     | MEDIUM                                    | DevOps onboarding as part of Wave 0                             |
+| COBOL reading literacy                                         | AI-assisted translation review      | HIGH — all TS reviewers need this         | 2-day COBOL reading workshop before translation begins          |
 
-> **Discovery question for client:** Who will maintain the Java system post-migration?
-> Ensure those maintainers are identified and included in the migration from Wave 1.
+> **Discovery question for client:** Who will maintain the NestJS/TypeScript system
+> post-migration? Ensure those maintainers are identified and included in the migration
+> from Wave 1.
 
 ***
 
@@ -675,8 +679,8 @@ identifies gaps that must be addressed:
 | I — Risk Matrix          | `migration/risk-matrix.md`           | Program-level risk register with mitigations           |
 | J — Dead Code Report     | `migration/dead-code.md`             | Dead programs, copybooks, paragraphs                   |
 | K — Dead Code JSON       | `migration/dead-code.json`           | Machine-readable dead code                             |
-| L — Data Model           | `migration/data-model.md`            | All copybooks mapped to Java + PostgreSQL              |
-| M — Type Map             | `migration/type-map.json`            | COBOL PIC → Java → PostgreSQL type mapping             |
+| L — Data Model           | `migration/data-model.md`            | All copybooks mapped to TypeScript + PostgreSQL        |
+| M — Type Map             | `migration/type-map.json`            | COBOL PIC → TypeScript → PostgreSQL type mapping       |
 | N — Schema SQL           | `migration/schema.sql`               | PostgreSQL DDL (all tables, indexes, FKs)              |
 | O — Credential Scan      | `migration/credential-scan.md`       | Security findings from source scan                     |
 | P — PoC Plan             | `migration/poc-plan.md`              | Proof-of-concept translation plan                      |

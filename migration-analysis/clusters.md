@@ -47,7 +47,7 @@ Clusters represent units that must be planned/migrated together due to bidirecti
 * Application-level security only — no RACF. USRSEC VSAM holds user IDs and passwords.
 * Replace with JWT/session-based authentication against PostgreSQL users table.
 * Single entry point for all sessions — high value to get right first.
-* CICS COMMAREA (COCOM01Y) passes user context downstream — must design Java equivalent (JWT claims).
+* CICS COMMAREA (COCOM01Y) passes user context downstream — must design a TypeScript equivalent (JWT claims + request DTO).
 
 ***
 
@@ -78,7 +78,7 @@ Clusters represent units that must be planned/migrated together due to bidirecti
 **Migration Notes:**
 
 * DB2 variant options (5, 6) only available if COTRTLIC/COTRTUPC are installed.
-* Route to role-based access control (RBAC) in Java/GraphQL layer.
+* Route to role-based access control (RBAC) in the NestJS/GraphQL layer.
 
 ***
 
@@ -105,7 +105,7 @@ Clusters represent units that must be planned/migrated together due to bidirecti
 
 **Migration Strategy:**
 
-* Combine into a single Java service: `AccountService` (GET + PUT operations).
+* Combine into a single NestJS service: `AccountService` (GET + PUT operations).
 * React component: `AccountDetail` with read/edit modes toggling in-place.
 * Map COMMAREA account-ID to URL path parameter.
 
@@ -130,7 +130,7 @@ Clusters represent units that must be planned/migrated together due to bidirecti
 
 **Migration Strategy:**
 
-* Java service: `CardService` (list, get, create, update)
+* NestJS service: `CardService` (list, get, create, update)
 * React components: `CardList` (paginated), `CardDetail`, `CardForm`
 * Replace VSAM browse with PostgreSQL paginated query (LIMIT/OFFSET or cursor)
 
@@ -153,9 +153,9 @@ Clusters represent units that must be planned/migrated together due to bidirecti
 
 **Migration Strategy:**
 
-* Java service: `TransactionService` (list, get, create)
+* NestJS service: `TransactionService` (list, get, create)
 * GraphQL: `transactions(accountId)`, `transaction(id)`, `createTransaction(...)`
-* Date validation: move to Java JSR-303 Bean Validation or custom validator
+* Date validation: move to class-validator decorators on DTOs (or a custom validator)
 
 ***
 
@@ -174,9 +174,9 @@ Clusters represent units that must be planned/migrated together due to bidirecti
 
 **Migration Strategy:**
 
-* Java service: `UserService` (list, get, create, delete)
+* NestJS service: `UserService` (list, get, create, delete)
 * Security: replace USRSEC VSAM with PostgreSQL users table
-* Admin-only: enforce via Spring Security role check
+* Admin-only: enforce via NestJS `@Roles('ADMIN')` + `RolesGuard`
 
 ***
 
@@ -198,7 +198,7 @@ Clusters represent units that must be planned/migrated together due to bidirecti
 
 **Migration Strategy:**
 
-* Java service: `PaymentService.submitPayment(cardNum, amount)`
+* NestJS service: `PaymentService.submitPayment(cardNum, amount)`
 * PostgreSQL transaction: UPDATE account SET balance = balance - payment; INSERT INTO transactions
 * GraphQL mutation: `submitPayment`
 
@@ -219,7 +219,7 @@ Clusters represent units that must be planned/migrated together due to bidirecti
 
 **Migration Strategy:**
 
-* Replace CICS START + TD queue with an async job trigger (e.g., Spring Batch, AWS Step Functions)
+* Replace CICS START + TD queue with an async job trigger (e.g., BullMQ + Kafka, or AWS Step Functions)
 * GraphQL mutation: `triggerTransactionReport(dateRange)` returns jobId
 * React: polling component or WebSocket for report status
 
@@ -240,7 +240,7 @@ Clusters represent units that must be planned/migrated together due to bidirecti
 
 **Migration Strategy:**
 
-* Spring Batch step: `PostTransactionStep`
+* BullMQ processor: `post-transaction` job
 * PostgreSQL transaction: BEGIN; UPDATE accounts; INSERT transactions; COMMIT
 * Idempotency key on TRAN-ID for retry safety
 
@@ -261,7 +261,7 @@ Clusters represent units that must be planned/migrated together due to bidirecti
 
 **Migration Strategy:**
 
-* Spring Batch scheduled job with date parameter
+* BullMQ scheduled job (or NestJS `@Cron`) with date parameter
 * PostgreSQL: read account balances + discount groups, compute interest, insert transaction records
 
 ***
@@ -281,8 +281,8 @@ Clusters represent units that must be planned/migrated together due to bidirecti
 
 **Migration Strategy:**
 
-* Java service: `StatementService.generateStatements(month, year)`
-* Template engine (Thymeleaf or similar) for HTML output
+* NestJS service: `StatementService.generateStatements(month, year)`
+* Template engine (Handlebars / EJS / React server rendering) for HTML output
 * Refactor file I/O subroutine pattern: all data access in a repository layer
 
 ***
@@ -316,7 +316,7 @@ Clusters represent units that must be planned/migrated together due to bidirecti
 
 **Migration Strategy:**
 
-* Replace with scheduled report jobs (Spring Batch + PDF library or Jasper)
+* Replace with scheduled report jobs (BullMQ + a PDF library such as PDFKit or Puppeteer)
 * Or on-demand GraphQL queries with pagination
 
 ***
@@ -374,7 +374,7 @@ Clusters represent units that must be planned/migrated together due to bidirecti
 **Migration Strategy:**
 
 * Map IMS DBD hierarchy to PostgreSQL table(s) for authorization records
-* Replace CBLTDLI calls with JDBC/JPA
+* Replace CBLTDLI calls with TypeORM repository queries against the migrated PostgreSQL schema
 * Requires IMS schema documentation (not in this codebase)
 
 ***
@@ -385,9 +385,9 @@ Clusters represent units that must be planned/migrated together due to bidirecti
 
 | Program | Purpose | Callers | Migration |
 |---------|---------|---------|-----------|
-| CSUTLDTC | Date validation (wraps IBM LE CEEDAYS) | COTRN02C, CORPT00C | Java `LocalDate.parse()` + validator |
-| COBSWAIT | Timed wait (wraps MVS STIMER) | WAITSTEP JCL | `Thread.sleep()` or remove |
-| COBDATFT | Date formatter (assembler) | CBACT01C | Java `DateTimeFormatter` |
+| CSUTLDTC | Date validation (wraps IBM LE CEEDAYS) | COTRN02C, CORPT00C | TypeScript date-fns `parseISO()` + validator |
+| COBSWAIT | Timed wait (wraps MVS STIMER) | WAITSTEP JCL | `await Bun.sleep(...)` or remove |
+| COBDATFT | Date formatter (assembler) | CBACT01C | TypeScript date-fns `format()` |
 
 ***
 

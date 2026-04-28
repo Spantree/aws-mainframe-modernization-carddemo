@@ -274,11 +274,11 @@ Exclude from migration scope:
 
 | Finding | Impact |
 |---------|--------|
-| CBTRN01C is dead — no JCL, no callers | Exclude from Java migration; reduces 1 batch program from scope |
+| CBTRN01C is dead — no JCL, no callers | Exclude from the TypeScript/NestJS migration; reduces 1 batch program from scope |
 | COCRDSEC CSD entry is orphaned — no source | Fix CSD before migration; live CICS defect (PGMIDERR on CDV1 entry) |
 | CSSTRPFY/UNUSED1Y have 0 consumers | Remove from copybook translation list |
 | Variant program CSDs confirmed (CRDDEMOM.csd, CRDDEMO2.csd) | All 13 variant programs are alive and have CSD registrations |
 | COPAUS2C shares CPVD transaction ID with COPAUS1C | Verify XCTL chain in COPAUS1C; COPAUS2C may be reached only by XCTL |
-| Dead paragraphs in COACTUPC/COACTVWC | Simplify during Java translation; do not implement 1230/1240 validators |
+| Dead paragraphs in COACTUPC/COACTVWC | Simplify during TypeScript translation; do not implement 1230/1240 validators |
 | CBSTM03A uses ALTER/GO TO — all branches alive | All 8100-* paragraphs reachable via ALTER mechanism; migrate entire program |
 | CREASTMT.JCL uses uppercase extension | Present in `app/jcl/CREASTMT.JCL` — executes CBSTM03A (alive) |

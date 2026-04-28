@@ -64,8 +64,9 @@
 Any modification to this record structure invalidates the binary interface between all 26 programs simultaneously. CICS COMMAREA is passed as raw bytes — field offsets matter absolutely.
 
 ### Migration Approach
-- Replace with a Java DTO/session object: `CardDemoSession`
-- Fields map to JWT claims for stateless sessions, or Spring session for stateful
+- Replace with a TypeScript DTO / session object: `CardDemoSession`
+- Fields map to JWT claims for stateless sessions, or a NestJS-managed session
+  (e.g. `express-session`) when server-side state is required
 - All 26 XCTL program boundaries become HTTP API calls with session context
 - **This is the #1 migration coordination point** — the session API contract
 
@@ -117,7 +118,7 @@ Adding/removing header fields forces BMS map regeneration for all 18 programs.
 
 ### Migration Approach
 - Migrate to React common header/layout component: `<AppHeader program={name} date={date} />`
-- Date/time formatting moves to JavaScript/TypeScript (or Java response DTO)
+- Date/time formatting moves to TypeScript (in the React component or the NestJS response DTO)
 
 ---
 
@@ -134,9 +135,9 @@ Adding/removing header fields forces BMS map regeneration for all 18 programs.
 - `WS-CURTIME-HH`, `WS-CURTIME-MM`, `WS-CURTIME-SS`
 
 ### Migration Approach
-- Replace with `LocalDateTime.now()` in Java service layer
-- Date formatting: `DateTimeFormatter.ofPattern("MM/DD/YYYY")`
-- No equivalent copybook needed — each program gets date from method call
+- Replace with `new Date()` / `Temporal.Now.plainDateTimeISO()` in the NestJS service layer
+- Date formatting: date-fns `format(d, 'MM/dd/yyyy')`
+- No equivalent copybook needed — each module gets date from a function call
 
 ---
 
@@ -153,8 +154,8 @@ Adding/removing header fields forces BMS map regeneration for all 18 programs.
 - `SEC-USR-PWD` PIC X(8) — password (not secure!)
 
 ### Migration Approach
-- Replace with Spring Security `Authentication` object / JWT principal
-- User type 'A'/'R' → Spring Security roles: `ROLE_ADMIN`, `ROLE_USER`
+- Replace with the NestJS `@CurrentUser()` principal populated by the JWT Passport strategy
+- User type 'A'/'R' → role claims used by NestJS `@Roles()` / `RolesGuard`: `ADMIN`, `USER`
 - Passwords: the current USRSEC VSAM stores plaintext passwords — **critical security issue to address in migration**
 
 ---
@@ -171,7 +172,7 @@ Adding/removing header fields forces BMS map regeneration for all 18 programs.
 - `WS-MESSAGE-COLOR` PIC X — DFHBMSCA color attribute
 
 ### Migration Approach
-- Replace with Java `ApiResponse` DTO with `message` and `messageType` (SUCCESS/ERROR/INFO)
+- Replace with a TypeScript `ApiResponse` DTO with `message` and `messageType` (SUCCESS/ERROR/INFO)
 - React: `<Notification message={msg} type={type} />`
 
 ---
@@ -215,7 +216,7 @@ CBACT01C, CBACT04C, CBEXPORT, CBIMPORT, CBTRN01C, CBTRN02C, CBSTM03A, COACTUPC, 
 
 ### Migration Approach
 - Maps to PostgreSQL `accounts` table (see `schema.sql`)
-- Java entity: `Account.java`
+- TypeORM entity: `account.entity.ts`
 - GraphQL type: `Account`
 
 ---
@@ -242,7 +243,7 @@ CBACT04C, CBEXPORT, CBIMPORT, CBTRN02C, CBTRN03C, COBIL00C, COTRN00C, COTRN01C, 
 
 ### Migration Approach
 - Maps to PostgreSQL `transactions` table
-- Java entity: `Transaction.java`
+- TypeORM entity: `transaction.entity.ts`
 - GraphQL type: `Transaction`
 
 ---
@@ -259,7 +260,7 @@ CBCUS01C, CBEXPORT, CBIMPORT, CBTRN01C, COACTUPC, COACTVWC, COACCT01
 
 ### Migration Approach
 - Maps to PostgreSQL `customers` table
-- Java entity: `Customer.java`
+- TypeORM entity: `customer.entity.ts`
 
 ---
 
@@ -274,8 +275,8 @@ CBCUS01C, CBEXPORT, CBIMPORT, CBTRN01C, COACTUPC, COACTVWC, COACCT01
 COACTUPC, COACTVWC, CORPT00C, COTRN02C
 
 ### Migration Approach
-- This is a 375-line inline utility "library" — equivalent to a Java utility class
-- Replace with `DateUtils.formatCicsDate(EibTime time) → String`
+- This is a 375-line inline utility "library" — equivalent to a TypeScript utility module
+- Replace with `dateUtils.formatCicsDate(eibTime: Date): string`
 - Always used together with CSUTLDWY (working storage companion)
 
 ---
@@ -308,20 +309,20 @@ COACTUPC, COACTVWC, CORPT00C, COTRN02C
 
 The following order minimizes breakage risk:
 
-1. **Migrate leaf utilities first** (CSUTLDPY, CSUTLDWY, CSDAT01Y) — replace with Java methods
+1. **Migrate leaf utilities first** (CSUTLDPY, CSUTLDWY, CSDAT01Y) — replace with TypeScript utility modules
 2. **Migrate entity records** in this order (widest impact last):
    - CVTRA05Y (10), CVCUS01Y (7), CVACT02Y (5), CVCRD01Y (2) — lower-impact entities
    - CVACT01Y (12), CVACT03Y (15) — higher-impact; coordinate with schema.sql
 3. **Migrate screen utilities** (CSMSG01Y, COTTL01Y) — once CICS layer is removed
 4. **Migrate CSUSR01Y** — after auth layer is in place
-5. **Migrate COCOM01Y last** — after all 26 consumer programs have Java equivalents;
+5. **Migrate COCOM01Y last** — after all 26 consumer programs have TypeScript/NestJS equivalents;
    this is the final CICS coupling point to remove
 
 ---
 
 ## Summary: Key Migration Insights
 
-1. **COCOM01Y is the architectural linchpin** — 26 programs share this COMMAREA. It is the mainframe equivalent of a session/context API. Its migration to a Java session DTO unblocks all other CICS program migrations.
+1. **COCOM01Y is the architectural linchpin** — 26 programs share this COMMAREA. It is the mainframe equivalent of a session/context API. Its migration to a TypeScript session DTO unblocks all other CICS program migrations.
 
 2. **Entity copybooks define the canonical data model** — CVACT01Y, CVACT03Y, CVTRA05Y, CVCUS01Y directly map to PostgreSQL tables (detailed in `schema.sql`). These are already well-normalized.
 
@@ -329,4 +330,4 @@ The following order minimizes breakage risk:
 
 4. **Two dead copybooks** (CSSTRPFY, UNUSED1Y) confirm there is some dead code in the codebase — see `dead-code.md` for full analysis.
 
-5. **The 375-line CSUTLDPY** is a pseudo-library included inline — a pattern that complicates maintenance; in Java it becomes a proper utility class.
+5. **The 375-line CSUTLDPY** is a pseudo-library included inline — a pattern that complicates maintenance; in TypeScript it becomes a proper utility module.

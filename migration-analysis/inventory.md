@@ -319,7 +319,7 @@ All jobs reside in `app/jcl/`. Two reusable procedures reside in `app/proc/`.
 | **IBM MQ**           | Variant | app-vsam-mq and app-authorization-ims-db2-mq; event publishing                                |
 | **RACF**             | Absent  | No RACF calls; application-level security only (USRSEC VSAM)                                  |
 | **GDG**              | Present | Generation Data Groups defined in DEFGDGB/DEFGDGD JCL                                         |
-| **Assembler**        | Present | COBDATFT (date format) and MVSWAIT (wait); must be re-implemented for Java                    |
+| **Assembler**        | Present | COBDATFT (date format) and MVSWAIT (wait); must be re-implemented in TypeScript               |
 
 ---
 
@@ -353,14 +353,14 @@ All jobs reside in `app/jcl/`. Two reusable procedures reside in `app/proc/`.
 
 - **Pseudo-conversational CICS** — all CICS programs use `EXEC CICS RETURN
 TRANSID(...)` to maintain state via DFHCOMMAREA rather than keeping programs
-  resident. Standard mainframe CICS pattern; maps to stateless REST + client-side
-  session in Java.
+  resident. Standard mainframe CICS pattern; maps to stateless REST/GraphQL +
+  client-side session (JWT) in NestJS.
 - **VSAM as database** — all persistent data is in VSAM KSDS files; no
   relational joins, only navigational key lookup. Direct mapping to PostgreSQL
   tables is straightforward.
 - **Application-level security** — sign-on and user management implemented in
   application code against USRSEC VSAM; no OS-level RACF. Must be replaced with
-  proper IAM (Spring Security / Keycloak) in Java.
+  proper IAM (NestJS Guards + Passport JWT, or Keycloak) in the NestJS service.
 - **Batch/Online separation** — clean separation between CICS online programs
   (CO\*) and batch programs (CB\*); minimal coupling between tiers except through
   shared VSAM files.

@@ -63,7 +63,7 @@ Composite = (CF × 0.20) + (CC × 0.25) + (DC × 0.15) + (DB × 0.15) + (INT × 
 - **Database (1):** No EXEC SQL. VSAM-only.
 - **Integration (3):** XCTL to navigation hub; 3 VSAM files (ACCTFILE I-O, CUSTFILE I-O, CARDXREF INPUT).
 - **Business Criticality (5):** Full account update with validation of all account master fields; SYNCPOINT confirms financial state change.
-- **Key risks:** The COPY REPLACING×39 pattern generates thousands of lines at compile time. CSLKPCDY must become a database table or Java enum. The 43 REDEFINES require careful field mapping in data model. Cannot be automated cleanly — requires manual refactoring.
+- **Key risks:** The COPY REPLACING×39 pattern generates thousands of lines at compile time. CSLKPCDY must become a database table or a TypeScript const map. The 43 REDEFINES require careful field mapping in the data model. Cannot be automated cleanly — requires manual refactoring.
 
 ---
 
@@ -109,7 +109,7 @@ Composite = (CF × 0.20) + (CC × 0.25) + (DC × 0.15) + (DB × 0.15) + (INT × 
 - **Lines:** 924
 - **Control Flow (5):** **ALTER statements (4)** — dynamically reassigns GO TO targets at runtime. 15 GO TO statements + 2 PERFORM THRU. Spaghetti control flow; ALTER is a migration **blocker** pattern.
 - **CICS Coupling (1):** No CICS — pure batch.
-- **Data Complexity (5):** **POINTER usage (4 references)** — directly addresses PSA/TCB/TIOT system control blocks. 2D OCCURS arrays for table formatting. 4 copybooks. Low-level mainframe memory manipulation with no Java equivalent.
+- **Data Complexity (5):** **POINTER usage (4 references)** — directly addresses PSA/TCB/TIOT system control blocks. 2D OCCURS arrays for table formatting. 4 copybooks. Low-level mainframe memory manipulation with no TypeScript equivalent.
 - **Integration (3):** Calls CBSTM03B (file I/O dispatcher); writes statement to both text and HTML output files.
 - **Business Criticality (4):** Generates account statements (financial documents delivered to customers).
 - **Key risks:** ALTER/GO TO is the most feared COBOL anti-pattern. POINTER arithmetic against MVS control blocks (PSA/TCB/TIOT) has no portable equivalent — this logic must be identified, understood, and completely rewritten. The HTML generation in COBOL is unusual and requires careful reverse-engineering.
@@ -125,11 +125,11 @@ Composite = (CF × 0.20) + (CC × 0.25) + (DC × 0.15) + (DB × 0.15) + (INT × 
 - **Type:** CICS Online (main app)
 - **Lines:** 649
 - **Control Flow (2):** 1 GO TO; mostly structured.
-- **CICS Coupling (5):** Uses **EXEC CICS START** to asynchronously initiate a batch transaction from online. This bridges the online/batch boundary — a pattern with no direct Java/Spring equivalent without an async job framework. START + RETURN = fire-and-forget scheduling.
+- **CICS Coupling (5):** Uses **EXEC CICS START** to asynchronously initiate a batch transaction from online. This bridges the online/batch boundary — a pattern with no direct NestJS equivalent without an async job framework. START + RETURN = fire-and-forget scheduling.
 - **Data Complexity (3):** CSUTLDPY (375-line date procedure copybook), 9 copybooks total.
 - **Integration (3):** Calls CSUTLDTC for date validation; CICS START triggers batch jobs.
 - **Business Criticality (3):** Initiates regulatory/billing reports from online screens.
-- **Key risks:** The CICS START pattern requires a message queue or job scheduler (e.g., Spring Batch + JMS/Kafka, or AWS Batch) to replace. The coupling between CORPT00C and the batch programs it triggers must be preserved through an async boundary.
+- **Key risks:** The CICS START pattern requires a message queue or job scheduler (e.g., BullMQ + Kafka/RabbitMQ, or AWS Batch) to replace. The coupling between CORPT00C and the batch programs it triggers must be preserved through an async boundary.
 
 ---
 
@@ -146,7 +146,7 @@ Composite = (CF × 0.20) + (CC × 0.25) + (DC × 0.15) + (DB × 0.15) + (INT × 
 - **Type:** CICS Online (main app) — Transaction ID: CB00
 - **Lines:** 572
 - **CICS Coupling (4):** READ, REWRITE, WRITE, SEND MAP, RECEIVE MAP, RETURN, XCTL, HANDLE ABEND, ASKTIME, FORMATTIME — 10 distinct commands.
-- **Integration (4):** Accesses TRANSACT-VSAM (write), ACCTDAT-VSAM (I-O), and **CXACAIX-VSAM via alternate index** — VSAM KSDS alternate index path requires special handling in Java (compound key lookup).
+- **Integration (4):** Accesses TRANSACT-VSAM (write), ACCTDAT-VSAM (I-O), and **CXACAIX-VSAM via alternate index** — VSAM KSDS alternate index path requires special handling in the TypeORM layer (compound key lookup).
 - **Business Criticality (5):** Bill payment — posts a payment transaction and updates account balance. Revenue-critical, ACID semantics required.
 
 ---
@@ -217,7 +217,7 @@ Composite = (CF × 0.20) + (CC × 0.25) + (DC × 0.15) + (DB × 0.15) + (INT × 
 - **Lines:** 620
 - **CICS Coupling (4):** Includes IBM MQ PUT command.
 - **Integration (5):** Dual-write: VSAM read + IBM MQ event publish.
-- **Business Criticality (4):** Account inquiry with event publishing — must preserve MQ message contract in Java migration.
+- **Business Criticality (4):** Account inquiry with event publishing — must preserve MQ message contract in the TypeScript/NestJS migration.
 
 ---
 
@@ -269,7 +269,7 @@ Composite = (CF × 0.20) + (CC × 0.25) + (DC × 0.15) + (DB × 0.15) + (INT × 
 
 - **Type:** CICS Online MQ (vsam-mq variant)
 - **Lines:** 524
-- **CICS Coupling (5):** Uses CICS START + RETRIEVE — asynchronous task scheduling pattern. The started task receives its request via RETRIEVE from CICS interval control. No direct Spring Boot equivalent without JMS/Kafka.
+- **CICS Coupling (5):** Uses CICS START + RETRIEVE — asynchronous task scheduling pattern. The started task receives its request via RETRIEVE from CICS interval control. No direct NestJS equivalent without a job queue or Kafka/RabbitMQ.
 - **Integration (4):** CICS async task + MQ.
 
 ---
@@ -283,7 +283,7 @@ Composite = (CF × 0.20) + (CC × 0.25) + (DC × 0.15) + (DB × 0.15) + (INT × 
 - **Type:** CICS Online DB2 (transaction-type-db2 variant)
 - **Lines:** 2,098
 - **Database (3):** 16 EXEC SQL statements; DECLARE CURSOR / OPEN / FETCH / CLOSE loop.
-- **Note:** Despite large LOC (2,098), most code is UI formatting. DB2 cursor maps cleanly to JPA/Spring Data streaming.
+- **Note:** Despite large LOC (2,098), most code is UI formatting. The DB2 cursor maps cleanly to TypeORM streaming queries (`createQueryBuilder().stream()`).
 
 ---
 
@@ -357,7 +357,7 @@ Composite = (CF × 0.20) + (CC × 0.25) + (DC × 0.15) + (DB × 0.15) + (INT × 
 
 - **Type:** CICS Online (main app)
 - **Lines:** 260
-- **Business Criticality (4):** Application-level authentication — credentials validated against USRSEC VSAM. No RACF. Security boundary must be replaced with proper auth framework (e.g., Spring Security + JWT).
+- **Business Criticality (4):** Application-level authentication — credentials validated against USRSEC VSAM. No RACF. Security boundary must be replaced with a proper auth framework (e.g., NestJS Guards + Passport JWT).
 
 ---
 
@@ -382,7 +382,7 @@ Composite = (CF × 0.20) + (CC × 0.25) + (DC × 0.15) + (DB × 0.15) + (INT × 
 
 - **Type:** Batch (main app)
 - **Lines:** 731
-- **Business Criticality (5):** Posts daily transactions — updates account balances in ACCTFILE and writes to TRANSACT-VSAM. Revenue-critical batch job requiring ACID semantics in Java.
+- **Business Criticality (5):** Posts daily transactions — updates account balances in ACCTFILE and writes to TRANSACT-VSAM. Revenue-critical batch job requiring ACID semantics (TypeORM `dataSource.transaction(...)`).
 
 ---
 
@@ -480,7 +480,7 @@ Composite = (CF × 0.20) + (CC × 0.25) + (DC × 0.15) + (DB × 0.15) + (INT × 
 | 1 | 1 | 3 | 1 | 2 | 5 | **1.85** |
 
 - **Type:** Batch (main app) — Lines: 652
-- **Business Criticality (5):** Interest calculation — applies discount-group rates to account balances. Financial mutation requiring exact decimal arithmetic (BigDecimal in Java).
+- **Business Criticality (5):** Interest calculation — applies discount-group rates to account balances. Financial mutation requiring exact decimal arithmetic (Decimal.js in TypeScript).
 
 ---
 
@@ -557,7 +557,7 @@ Composite = (CF × 0.20) + (CC × 0.25) + (DC × 0.15) + (DB × 0.15) + (INT × 
 | 1 | 1 | 3 | 1 | 2 | 1 | **1.45** |
 
 - **Type:** Called Subprogram (main app) — Lines: 157
-- Date validation wrapper around IBM LE CEEDAYS. Replace with java.time.LocalDate.
+- Date validation wrapper around IBM LE CEEDAYS. Replace with date-fns `parseISO()` / `Temporal.PlainDate`.
 
 ---
 
@@ -622,10 +622,10 @@ These two programs are written in IBM Assembler and cannot be automatically tran
 
 | Program | Lines | Called By | Replacement |
 |---|---|---|---|
-| COBDATFT | 84 | CBACT01C | Java `java.time.LocalDate` formatter |
-| MVSWAIT | 30 | COBSWAIT | `Thread.sleep(centiseconds * 10L)` |
+| COBDATFT | 84 | CBACT01C | TypeScript date formatter (date-fns / `Temporal.PlainDate`) |
+| MVSWAIT | 30 | COBSWAIT | `await Bun.sleep(centiseconds * 10)` |
 
-Both replacements are trivial once the Java layer is established. However, **CBACT01C and COBSWAIT are blocked** until their assembler dependencies are resolved.
+Both replacements are trivial once the TypeScript/NestJS layer is established. However, **CBACT01C and COBSWAIT are blocked** until their assembler dependencies are resolved.
 
 ---
 

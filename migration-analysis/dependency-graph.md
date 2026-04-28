@@ -443,7 +443,7 @@ Additional variant BMS maps: COPAU00 (COPAUA0C), COPAU01 (COPAUS0C), COTRTLI (CO
 | 6 | GDG chaining creates implicit ordering: POSTTRAN→INTCALC→COMBTRAN→TRANREPT | HIGH | Enforce orchestration order in replacement scheduler |
 | 7 | COPAUS0C dependency in COMEN01C guarded by EXEC CICS INQUIRE runtime check | MED | Test with IMS variant absent |
 | 8 | CBSTM03A uses ALTER/GO TO control flow (15 GOTOs) | MED | Requires careful re-engineering of control flow |
-| 9 | DFHBMSCA/DFHAID are IBM-supplied — no source available | LOW | Use JCICS or equivalent for Java migration |
+| 9 | DFHBMSCA/DFHAID are IBM-supplied — no source available | LOW | Reimplement equivalent constants in TypeScript (no JCICS-style runtime needed in NestJS) |
 
 ---
 

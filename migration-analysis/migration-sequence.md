@@ -15,23 +15,23 @@
 
 ## Wave 0 — Pre-Migration (Blockers & Infrastructure)
 
-**Goal:** Eliminate assembler dependencies; establish Java infrastructure. No COBOL program migration yet.
+**Goal:** Eliminate assembler dependencies; establish TypeScript/NestJS infrastructure. No COBOL program migration yet.
 
-These are not COBOL migrations — they are Java implementations that unblock Wave 1.
+These are not COBOL migrations — they are TypeScript implementations that unblock Wave 1.
 
 | # | Program | Action | Why |
 |---|---|---|---|
-| 0.1 | COBDATFT (Assembler) | Reimplement as Java utility method | Blocks CBACT01C |
-| 0.2 | MVSWAIT (Assembler) | Replace with Thread.sleep() | Blocks COBSWAIT |
+| 0.1 | COBDATFT (Assembler) | Reimplement as TypeScript utility function | Blocks CBACT01C |
+| 0.2 | MVSWAIT (Assembler) | Replace with `Bun.sleep()` / `setTimeout` | Blocks COBSWAIT |
 | 0.3 | CSUTLDTC (Subprogram) | Migrate — date validation library | Called by CORPT00C, COTRN02C; composite 1.45 |
 
-**Output:** Java `DateUtils` class replacing COBDATFT + CSUTLDTC; `Thread.sleep()` replacing MVSWAIT.
+**Output:** TypeScript `DateUtils` module replacing COBDATFT + CSUTLDTC; `Bun.sleep()` replacing MVSWAIT.
 
 ---
 
 ## Wave 1 — Easy Batch Utilities (Composites 1.35–1.60)
 
-**Goal:** Build team familiarity with COBOL-to-Java patterns using simple, isolated batch programs.
+**Goal:** Build team familiarity with COBOL-to-TypeScript patterns using simple, isolated batch programs.
 **Team can proceed in parallel within this wave.**
 
 ### 1A — Simple VSAM Readers (Composites 1.40)
@@ -43,7 +43,7 @@ These three programs are nearly identical (178 lines each, same structure):
 | 1.2 | CBACT03C | 1.40 | Read CARDXREF VSAM → print |
 | 1.3 | CBCUS01C | 1.40 | Read CUSTFILE VSAM → print |
 
-**Rationale:** Identical pattern — migrate once, copy-adapt for the other two. Validates VSAM→JPA entity mapping.
+**Rationale:** Identical pattern — migrate once, copy-adapt for the other two. Validates VSAM→TypeORM entity mapping.
 
 ### 1B — Batch DB2 Utilities (Composites 1.35–1.55)
 
@@ -53,13 +53,13 @@ These three programs are nearly identical (178 lines each, same structure):
 | 1.5 | PAUDBLOD | 1.40 | DB2 bulk INSERT from sequential file |
 | 1.6 | DBUNLDGS | 1.55 | DB2 cursor unload to file |
 
-**Rationale:** Simple SQL patterns; no CICS, no complex data structures. Tests Spring Batch + JPA patterns.
+**Rationale:** Simple SQL patterns; no CICS, no complex data structures. Tests BullMQ + TypeORM patterns.
 
 ### 1C — Utility Programs
 
 | # | Program | Composite | Description |
 |---|---|---|---|
-| 1.7 | COBSWAIT | 1.60 | Assembler call → Thread.sleep() (trivial after Wave 0) |
+| 1.7 | COBSWAIT | 1.60 | Assembler call → `Bun.sleep()` (trivial after Wave 0) |
 
 ---
 
@@ -92,7 +92,7 @@ These three programs are nearly identical (178 lines each, same structure):
 |---|---|---|---|
 | 2.6 | PAUDBUNL | 1.80 | IMS DL/I unload → sequential file |
 
-**Note:** PAUDBUNL requires IMS adapter/stub in Java layer. Migrate with CBPAUP0C later (Wave 4).
+**Note:** PAUDBUNL requires IMS adapter/stub in the NestJS layer. Migrate with CBPAUP0C later (Wave 4).
 
 ---
 
@@ -105,7 +105,7 @@ These three programs are nearly identical (178 lines each, same structure):
 | 3.1 | CBACT04C | 1.85 | **Interest calculation** — applies rates to account balances |
 | 3.2 | CBTRN02C | 2.00 | **Transaction posting** — updates account balances, writes TRANSACT-VSAM |
 
-**Rationale:** Both are BC=5 (financial mutation). Migrate after batch infrastructure is proven. Require exact decimal arithmetic (BigDecimal) and transaction management. Test heavily with parallel run (old + new systems producing same results).
+**Rationale:** Both are BC=5 (financial mutation). Migrate after batch infrastructure is proven. Require exact decimal arithmetic (Decimal.js) and transaction management. Test heavily with parallel run (old + new systems producing same results).
 
 **Pre-requisite:** Wave 2 VSAM adapters must be in place.
 **Testing requirement:** Run in shadow mode alongside mainframe for at least one billing cycle.
@@ -138,7 +138,7 @@ These three programs are nearly identical (178 lines each, same structure):
 | 4.6 | COUSR03C | 2.00 | User delete |
 | 4.7 | COUSR00C | 2.25 | User list (VSAM browse) |
 
-**Rationale:** User management (COUSR*) forms a cohesive module. Migrate as a unit. The VSAM browse pattern in COUSR00C establishes pagination patterns for later screens.
+**Rationale:** User management (COUSR*) forms a cohesive NestJS module. Migrate as a unit. The VSAM browse pattern in COUSR00C establishes pagination patterns for later screens.
 
 ---
 
@@ -152,7 +152,7 @@ These three programs are nearly identical (178 lines each, same structure):
 | 5.2 | COACTVWC | 2.70 | Account view (read-only) |
 | 5.3 | COTRN00C | 2.40 | Transaction list (bidirectional VSAM browse) |
 
-**Security note (COSGN00C):** The application uses application-level credential checking against USRSEC VSAM. The Java replacement must integrate with a proper identity provider (Spring Security + JWT or OAuth2). The VSAM user table migrates to a `users` table in PostgreSQL.
+**Security note (COSGN00C):** The application uses application-level credential checking against USRSEC VSAM. The NestJS replacement must integrate with a proper identity provider (NestJS Guards + Passport JWT, or OAuth2). The VSAM user table migrates to a `users` table in PostgreSQL.
 
 ---
 
@@ -167,7 +167,7 @@ These three programs are nearly identical (178 lines each, same structure):
 | 6.1 | COTRTUPC | 2.30 | Transaction type update (DB2) |
 | 6.2 | COTRTLIC | 2.45 | Transaction type list (DB2 cursor) |
 
-**Rationale:** Straightforward DB2 CRUD; COTRTLIC cursor maps to JPA repository.
+**Rationale:** Straightforward DB2 CRUD; COTRTLIC cursor maps to a TypeORM repository query.
 
 ### 6B — MQ Variants (vsam-mq)
 
@@ -176,7 +176,7 @@ These three programs are nearly identical (178 lines each, same structure):
 | 6.3 | COACCT01 | 2.80 | Account inquiry with MQ publish |
 | 6.4 | CODATE01 | 2.45 | CICS START/RETRIEVE async date service |
 
-**Note:** CODATE01's CICS START pattern maps to Spring @Async + JMS/Kafka. COACCT01's MQ PUT maps to Spring Integration outbound channel.
+**Note:** CODATE01's CICS START pattern maps to a BullMQ job + Kafka/RabbitMQ. COACCT01's MQ PUT maps to a NestJS microservice client publishing to the outbound queue.
 
 ### 6C — IMS Authorization Batch + CICS (authorization-ims-db2-mq)
 
@@ -188,7 +188,7 @@ These three programs are nearly identical (178 lines each, same structure):
 | 6.8 | COPAUA0C | 2.65 | Auth inquiry screen (IMS) |
 | 6.9 | COPAUS0C | 2.65 | Auth setup management (IMS) |
 
-**IMS note:** All IMS programs call CBLTDLI (IBM DL/I call interface). Java replacement requires either IMS connector (IBM IMS Universal Drivers) or full IMS-to-PostgreSQL data migration first.
+**IMS note:** All IMS programs call CBLTDLI (IBM DL/I call interface). TypeScript replacement requires either an IMS connector bridge (IBM IMS Universal Drivers via JNI/native bridge) or full IMS-to-PostgreSQL data migration first.
 
 ---
 
@@ -203,9 +203,9 @@ These three programs are nearly identical (178 lines each, same structure):
 | 7.3 | COTRN02C | 2.90 | **Transaction add** (financial transaction creation) |
 | 7.4 | CORPT00C | 3.00 | Report menu (CICS START → batch) |
 
-**COBIL00C special:** VSAM alternate index (CXACAIX) requires modeling as a composite key in PostgreSQL. Payment posting must be wrapped in `@Transactional`.
+**COBIL00C special:** VSAM alternate index (CXACAIX) requires modeling as a composite key in PostgreSQL. Payment posting must be wrapped in a TypeORM `dataSource.transaction(...)` (or `@Transaction()`) block.
 
-**CORPT00C special:** CICS START pattern must be replaced with a job trigger mechanism (Spring Batch JobLauncher + REST endpoint, or Kafka event to trigger batch consumer).
+**CORPT00C special:** CICS START pattern must be replaced with a job trigger mechanism (BullMQ producer + REST endpoint, or Kafka event to trigger a batch consumer).
 
 ---
 
@@ -222,8 +222,8 @@ These three programs are nearly identical (178 lines each, same structure):
 
 **CBSTM03A is a manual rewrite candidate.** The ALTER statements and POINTER-based MVS control block addressing cannot be translated automatically. Approach:
 1. Understand the business logic (statement formatting, line-item accumulation, HTML/text rendering)
-2. Rewrite as a Java report generator (e.g., Thymeleaf for HTML, iText or FreeMarker for text)
-3. The file I/O dispatcher (CBSTM03B) becomes unnecessary — replace 4-file VSAM access with JPA queries
+2. Rewrite as a TypeScript report generator (e.g., Handlebars/EJS templates for HTML, plain template literals for text)
+3. The file I/O dispatcher (CBSTM03B) becomes unnecessary — replace 4-file VSAM access with TypeORM queries
 
 ### 8B — Card List/Update
 
@@ -232,7 +232,7 @@ These three programs are nearly identical (178 lines each, same structure):
 | 8.3 | COCRDLIC | 3.30 | Card list (VSAM browse, 16 GO TO) |
 | 8.4 | COCRDUPC | 3.40 | **Card update** (21 GO TO, 8 REDEFINES) |
 
-**Approach:** COCRDLIC and COCRDUPC share data structures — migrate together. The 8 REDEFINES in COCRDUPC require careful Java class hierarchy design.
+**Approach:** COCRDLIC and COCRDUPC share data structures — migrate together. The 8 REDEFINES in COCRDUPC require careful TypeScript discriminated-union / interface hierarchy design.
 
 ### 8C — Account Update (final, most complex)
 
@@ -242,9 +242,9 @@ These three programs are nearly identical (178 lines each, same structure):
 
 **COACTUPC strategy:**
 1. This program is a **manual rewrite candidate** — 51 GO TO statements make automated translation unreliable
-2. Extract the business validation rules first (state/ZIP lookup → database table; field validation → `@Valid` annotations)
-3. SYNCPOINT → `@Transactional` on the update service method
-4. CSLKPCDY (1,318-line lookup) → database reference table or Java enum backed by DB
+2. Extract the business validation rules first (state/ZIP lookup → database table; field validation → class-validator decorators on DTOs)
+3. SYNCPOINT → `dataSource.transaction(...)` (or `@Transaction()`) on the update service method
+4. CSLKPCDY (1,318-line lookup) → database reference table or TypeScript const map backed by DB
 5. CSSETATY COPY REPLACING×39 → React form field components with validation states
 6. Estimate: largest single migration task in the project — allocate 3–5 sprints
 
@@ -254,7 +254,7 @@ These three programs are nearly identical (178 lines each, same structure):
 
 | Wave | Programs | Composite Range | Effort | Key Deliverable |
 |---|---|---|---|---|
-| 0 | 3 (incl. 2 assembler) | prereqs | Low | Java utility methods |
+| 0 | 3 (incl. 2 assembler) | prereqs | Low | TypeScript utility modules |
 | 1 | 7 | 1.35–1.60 | Low | Batch patterns, DB2 patterns |
 | 2 | 6 | 1.55–2.10 | Low-Medium | Batch infrastructure, data migration tools |
 | 3 | 2 | 1.85–2.00 | Medium-High | Financial batch (shadow run required) |
@@ -295,9 +295,9 @@ COMEN01C / COADM01C (Wave 4) → entry-point navigation hubs
 
 Before committing to full migration, implement a PoC using **Wave 4A (COTRN01C)** as the target:
 
-- Simple CICS READ → Java @RestController GET endpoint
+- Simple CICS READ → NestJS `@Controller` `@Get` endpoint
 - BMS screen map → React form component
-- VSAM TRANSACT record → JPA `Transaction` entity
-- COMMAREA → JWT session state
+- VSAM TRANSACT record → TypeORM `Transaction` entity
+- COMMAREA → request DTO + JWT session state
 
-This validates the full stack (COBOL→Java→React) on the simplest representative program before investing in harder migrations.
+This validates the full stack (COBOL→TypeScript→React) on the simplest representative program before investing in harder migrations.

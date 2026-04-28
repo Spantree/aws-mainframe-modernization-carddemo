@@ -15,8 +15,8 @@ transactions) and batch JCL jobs.
 **Scale:** 44 COBOL programs, 20,650 lines of core code, 8 VSAM data files,
 17 online screens, 38 batch jobs.
 
-**Target:** Java 21 + Spring Boot 3 + PostgreSQL + GraphQL + React — a modern cloud-native
-stack deployable on AWS.
+**Target:** TypeScript 5 + NestJS 10 (on Bun) + TypeORM + PostgreSQL + GraphQL + React —
+a modern cloud-native stack deployable on AWS.
 
 ---
 
@@ -43,8 +43,8 @@ stack deployable on AWS.
   1. **Hardcoded FTP credentials** in `FTPJCL.JCL` (High — credentials in source code)
   2. **Plaintext passwords** in user security file (Critical — PCI DSS violation)
   3. **CVV card codes stored permanently** in card file (Critical — PCI DSS 3.3 violation)
-- **4 financial programs** require parallel validation (run both mainframe and Java
-  simultaneously, compare results) before cutover can be authorized.
+- **4 financial programs** require parallel validation (run both mainframe and the
+  NestJS service simultaneously, compare results) before cutover can be authorized.
 
 ---
 
@@ -54,10 +54,10 @@ stack deployable on AWS.
 
 We do NOT recommend a big-bang replacement. Instead:
 
-1. **Build Java services in parallel** alongside the running mainframe
-2. **Migrate one transaction at a time** — flip routing from mainframe to Java as each
-   is validated
-3. **Keep mainframe running** until all transactions are verified in Java
+1. **Build NestJS/TypeScript services in parallel** alongside the running mainframe
+2. **Migrate one transaction at a time** — flip routing from mainframe to the NestJS
+   service as each is validated
+3. **Keep mainframe running** until all transactions are verified in the new stack
 4. **Decommission mainframe** only when 30 days of parallel operation confirm zero
    financial discrepancies
 
@@ -118,10 +118,10 @@ Regardless of migration timeline, these actions must be taken **now**:
 ## What Success Looks Like
 
 After migration:
-- Credit card management runs on AWS in Java/PostgreSQL — no mainframe dependency
+- Credit card management runs on AWS in TypeScript/NestJS + PostgreSQL — no mainframe dependency
 - Modern React UI replaces 3270 green-screen terminals
 - GraphQL/REST APIs replace CICS transaction codes
-- Passwords stored with BCrypt hashing (industry standard)
+- Passwords stored with bcrypt hashing (industry standard)
 - CVV not stored at all (PCI compliance)
 - SSN encrypted at rest
 - All financial calculations produce results identical to the mainframe (verified by
