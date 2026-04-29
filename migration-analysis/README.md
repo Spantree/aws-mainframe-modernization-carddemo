@@ -66,3 +66,14 @@ Analysis outputs in this directory are released under MIT License.
 Copyright (c) 2026 Spantree Technology Group, LLC.
 
 The CardDemo source code is licensed under Apache License 2.0 by Amazon Web Services, Inc.
+
+## Diagram Previews
+
+### Dependency Graph
+![Program dependency graph](dependency-graph.png)
+
+### Batch Job Flow
+![Batch job flow](batch-flow.png)
+
+### Data Flow
+![Data flow between programs and files](data-flow.png)
