@@ -1,0 +1,69 @@
+direction: right
+title: CardDemo Data Flow {
+  near: top-center
+  style.font-size: 16
+  style.bold: true
+}
+
+# VSAM Files
+vsam: VSAM Files {
+  style.fill: "#EAF2FF"
+  style.stroke: "#2980B9"
+
+  ACCTFILE: ACCTFILE\nAccount Master { shape: cylinder }
+  CARDFILE: CARDFILE\nCard File { shape: cylinder }
+  CUSTFILE: CUSTFILE\nCustomer File { shape: cylinder }
+  CARDXREF: CARDXREF\nCard-Acct Xref { shape: cylinder }
+  TRANFILE: TRANFILE\nTransaction File { shape: cylinder }
+  USRSEC: USRSEC\nUser Security { shape: cylinder }
+  DISCGRP: DISCGRP\nDisclose Groups { shape: cylinder }
+}
+
+# Online Programs (read-heavy)
+online: Online Programs {
+  style.fill: "#EBF5FB"
+
+  COACTUPC: COACTUPC\nAcct Update
+  COACTVWC: COACTVWC\nAcct View
+  COBIL00C: COBIL00C\nBill Payment
+  COSGN00C: COSGN00C\nSignon
+  COCRDSLC: COCRDSLC\nCard Select
+  COCOTRN: COTRN02C\nTxn Add
+}
+
+# Batch Programs
+batch: Batch Programs {
+  style.fill: "#EAFAF1"
+
+  CBTRN02C: CBTRN02C\nTxn Posting
+  CBACT04C: CBACT04C\nInterest Calc
+  CBSTM03A: CBSTM03A\nStatement Gen
+  CBACT02C: CBACT02C\nCard Reader
+  CBCUS01C: CBCUS01C\nCust Reader
+}
+
+# Online access patterns
+online.COACTUPC -> vsam.ACCTFILE: READ/UPDATE
+online.COACTVWC -> vsam.ACCTFILE: READ
+online.COACTVWC -> vsam.CARDFILE: READ
+online.COBIL00C -> vsam.ACCTFILE: READ/UPDATE
+online.COBIL00C -> vsam.TRANFILE: WRITE
+online.COSGN00C -> vsam.USRSEC: READ
+online.COCRDSLC -> vsam.CARDFILE: READ
+online.COCRDSLC -> vsam.CARDXREF: READ
+online.COCOTRN -> vsam.TRANFILE: WRITE
+online.COCOTRN -> vsam.CARDXREF: READ
+
+# Batch access patterns
+batch.CBTRN02C -> vsam.TRANFILE: READ/WRITE
+batch.CBTRN02C -> vsam.ACCTFILE: READ/UPDATE
+batch.CBTRN02C -> vsam.CARDXREF: READ
+batch.CBACT04C -> vsam.ACCTFILE: READ/UPDATE
+batch.CBACT04C -> vsam.DISCGRP: READ
+batch.CBACT04C -> vsam.TRANFILE: WRITE
+batch.CBSTM03A -> vsam.ACCTFILE: READ
+batch.CBSTM03A -> vsam.CARDFILE: READ
+batch.CBSTM03A -> vsam.CUSTFILE: READ
+batch.CBSTM03A -> vsam.TRANFILE: READ
+batch.CBACT02C -> vsam.CARDFILE: READ
+batch.CBCUS01C -> vsam.CUSTFILE: READ

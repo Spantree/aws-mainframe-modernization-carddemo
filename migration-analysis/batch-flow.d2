@@ -1,0 +1,44 @@
+direction: down
+title: CardDemo Batch Job Flow {
+  near: top-center
+  style.font-size: 16
+  style.bold: true
+}
+
+# Input files
+DALYTRAN: DALYTRAN\nDaily Transactions\n(input) { shape: cylinder; style.fill: "#FEF9E7" }
+CARDXREF: CARDXREF\nCard-Acct Xref\nKSDS { shape: cylinder; style.fill: "#EAF2FF" }
+ACCTFILE: ACCTFILE\nAccount Master\nKSDS { shape: cylinder; style.fill: "#EAF2FF" }
+CARDFILE: CARDFILE\nCard File\nKSDS { shape: cylinder; style.fill: "#EAF2FF" }
+CUSTFILE: CUSTFILE\nCustomer File\nKSDS { shape: cylinder; style.fill: "#EAF2FF" }
+DISCGRP: DISCGRP\nDisclose Groups\nKSDS { shape: cylinder; style.fill: "#EAF2FF" }
+
+# Batch Programs
+CBTRN02C: CBTRN02C\nTransaction Posting { style.fill: "#EAFAF1" }
+CBACT04C: CBACT04C\nInterest Calculation { style.fill: "#EAFAF1" }
+CBSTM03A: CBSTM03A\nStatement Generation { style.fill: "#EAFAF1" }
+CBTRN01C: CBTRN01C\nTransaction Report { style.fill: "#EAFAF1" }
+
+# Output files
+TRANFILE: TRANFILE\nTransaction File\nKSDS { shape: cylinder; style.fill: "#F9EBEA" }
+REPORT: REPORT\nStatement Report\n(output) { shape: parallelogram; style.fill: "#FDF2F8" }
+
+# Flow
+DALYTRAN -> CBTRN02C: reads
+CARDXREF -> CBTRN02C: reads
+ACCTFILE -> CBTRN02C: reads/writes
+CBTRN02C -> TRANFILE: writes
+
+ACCTFILE -> CBACT04C: reads/writes
+DISCGRP -> CBACT04C: reads
+CARDXREF -> CBACT04C: reads
+CBACT04C -> TRANFILE: writes interest
+
+ACCTFILE -> CBSTM03A: reads
+CARDFILE -> CBSTM03A: reads
+CUSTFILE -> CBSTM03A: reads
+TRANFILE -> CBSTM03A: reads
+CBSTM03A -> REPORT: produces
+
+TRANFILE -> CBTRN01C: reads
+CBTRN01C -> REPORT: produces

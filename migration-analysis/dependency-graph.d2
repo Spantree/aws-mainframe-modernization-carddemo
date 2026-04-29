@@ -1,0 +1,108 @@
+direction: right
+title: CardDemo Program Call Graph {
+  near: top-center
+  style.font-size: 16
+  style.bold: true
+}
+
+# CICS Transactions (entry points)
+transactions: CICS Transactions {
+  style.fill: "#EAF2FF"
+  style.stroke: "#2980B9"
+
+  CC00: TX: CC00 { shape: oval }
+  CM00: TX: CM00 { shape: oval }
+  CA00: TX: CA00 { shape: oval }
+  CB00: TX: CB00 { shape: oval }
+  CT00: TX: CT00 { shape: oval }
+  CU00: TX: CU00 { shape: oval }
+  CR00: TX: CR00 { shape: oval }
+  CAUP: TX: CAUP { shape: oval }
+  CAVW: TX: CAVW { shape: oval }
+  CCLI: TX: CCLI { shape: oval }
+  CCDL: TX: CCDL { shape: oval }
+  CCUP: TX: CCUP { shape: oval }
+}
+
+# Online CICS Programs
+online: CICS Online Programs {
+  style.fill: "#EBF5FB"
+  style.stroke: "#1A5276"
+
+  COSGN00C: COSGN00C\nSignon
+  COMEN01C: COMEN01C\nMain Menu
+  COADM01C: COADM01C\nAdmin Menu
+  COBIL00C: COBIL00C\nBill Payment
+  COACTVWC: COACTVWC\nAcct View
+  COACTUPC: COACTUPC\nAcct Update
+  COCRDLIC: COCRDLIC\nCard List
+  COCRDSLC: COCRDSLC\nCard Select
+  COCRDUPC: COCRDUPC\nCard Update
+  COTRN00C: COTRN00C\nTxn List
+  COTRN01C: COTRN01C\nTxn View
+  COTRN02C: COTRN02C\nTxn Add
+  CORPT00C: CORPT00C\nReport Menu
+  COUSR00C: COUSR00C\nUser List
+  COUSR01C: COUSR01C\nUser View
+  COUSR02C: COUSR02C\nUser Add
+  COUSR03C: COUSR03C\nUser Del
+  CSUTLDTC: CSUTLDTC\nDate Util
+}
+
+# Variant programs
+COTRTLIC: "COTRTLIC TxnType List [DB2]" { style.fill: "#FEF9E7" }
+COTRTUPC: "COTRTUPC TxnType Upd [DB2]" { style.fill: "#FEF9E7" }
+COPAUS0C: "COPAUS0C Auth Setup [IMS]" { style.fill: "#FEF9E7" }
+
+# Batch Programs
+batch: Batch Programs {
+  style.fill: "#EAFAF1"
+  style.stroke: "#1E8449"
+
+  CBACT01C: CBACT01C\nAcct File
+  CBACT02C: CBACT02C\nCard File
+  CBACT03C: CBACT03C\nCard Xref
+  CBACT04C: CBACT04C\nInterest Calc
+  CBCUS01C: CBCUS01C\nCustomer File
+  CBTRN01C: CBTRN01C\nTxn Post 1
+  CBTRN02C: CBTRN02C\nTxn Post 2
+  CBTRN03C: CBTRN03C\nTxn Post 3
+  CBSTM03A: CBSTM03A\nStatement
+  CBEXPORT: CBEXPORT\nExport
+  CBIMPORT: CBIMPORT\nImport
+}
+
+# External/Utility
+COBDATFT: "COBDATFT [ASM]" { style.fill: "#FDEDEC" }
+MVSWAIT: "MVSWAIT [ASM]" { style.fill: "#FDEDEC" }
+
+# Transaction → Program invocations
+transactions.CC00 -> online.COSGN00C: invokes
+transactions.CM00 -> online.COMEN01C: invokes
+transactions.CA00 -> online.COADM01C: invokes
+transactions.CB00 -> online.COBIL00C: invokes
+transactions.CAUP -> online.COACTUPC: invokes
+transactions.CAVW -> online.COACTVWC: invokes
+transactions.CCLI -> online.COCRDLIC: invokes
+transactions.CCDL -> online.COCRDSLC: invokes
+transactions.CCUP -> online.COCRDUPC: invokes
+transactions.CT00 -> online.COTRN00C: invokes
+transactions.CU00 -> online.COUSR00C: invokes
+transactions.CR00 -> online.CORPT00C: invokes
+
+# Navigation (XCTL)
+online.COSGN00C -> online.COMEN01C: XCTL regular
+online.COSGN00C -> online.COADM01C: XCTL admin
+online.COMEN01C -> online.COACTVWC: opt1
+online.COMEN01C -> online.COACTUPC: opt2
+online.COMEN01C -> online.COCRDLIC: opt3
+online.COMEN01C -> online.COTRN00C: opt6
+online.COMEN01C -> online.CORPT00C: opt9
+online.COMEN01C -> online.COBIL00C: opt10
+online.COADM01C -> online.COUSR00C: admin
+
+# Subprogram calls
+online.COACTUPC -> COBDATFT: CALL
+online.COBIL00C -> COBDATFT: CALL
+batch.CBSTM03A -> COBDATFT: CALL
+batch.CBSTM03A -> MVSWAIT: CALL
